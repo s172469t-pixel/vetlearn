@@ -472,14 +472,15 @@
     }
     #img-popup-close:active { background: rgba(255,255,255,0.35); }
     #img-popup-inner {
-      touch-action: pinch-zoom;
+      touch-action: none;
       display: flex; align-items: center; justify-content: center;
-      max-width: 100vw; max-height: 100vh;
+      width: 100vw; height: 100vh; overflow: hidden;
     }
     #img-popup-img {
       max-width: 100vw; max-height: 100vh;
       object-fit: contain; user-select: none; -webkit-user-select: none;
-      border-radius: 4px;
+      border-radius: 4px; transform-origin: center center;
+      will-change: transform;
     }
     .refresh-btn {
       background: none; border: none; cursor: pointer; color: var(--accent);
@@ -1929,13 +1930,61 @@ document.getElementById('reset-btn').addEventListener('click', async () => {
   toast('データを削除しました');
 });
 
-// ── Image popup ───────────────────────────────────────────────────
+// ── Image popup + カスタムピンチズーム ────────────────────────────
+const _popup = (() => {
+  const overlay = document.getElementById('img-popup');
+  const inner   = document.getElementById('img-popup-inner');
+  const img     = document.getElementById('img-popup-img');
+
+  const MIN = 0.5, MAX = 5;
+  let scale = 1, baseScale = 1, startDist = 0, lastTap = 0;
+
+  function setScale(s) {
+    scale = Math.min(MAX, Math.max(MIN, s));
+    img.style.transform = `scale(${scale})`;
+  }
+
+  function reset() { scale = 1; baseScale = 1; img.style.transform = ''; }
+
+  function touchDist(t) {
+    return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  }
+
+  inner.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      startDist = touchDist(e.touches);
+      baseScale = scale;
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - lastTap < 280) {
+        e.preventDefault();
+        setScale(scale === 1 ? 2 : 1);  // ダブルタップで等倍/2倍トグル
+      }
+      lastTap = now;
+    }
+  }, { passive: false });
+
+  inner.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      setScale(baseScale * (touchDist(e.touches) / startDist));
+    }
+  }, { passive: false });
+
+  inner.addEventListener('touchend', () => { baseScale = scale; });
+
+  return { reset };
+})();
+
 function openImgPopup(src) {
+  _popup.reset();
   document.getElementById('img-popup-img').src = src;
   document.getElementById('img-popup').classList.add('open');
 }
 function closeImgPopup() {
   document.getElementById('img-popup').classList.remove('open');
+  _popup.reset();
   document.getElementById('img-popup-img').src = '';
 }
 document.getElementById('img-popup').addEventListener('click', e => {
