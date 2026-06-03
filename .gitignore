@@ -1,0 +1,5 @@
+vetlearn.db
+vetlearn_data.json
+attachments/
+__pycache__/
+*.pyc
