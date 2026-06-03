@@ -437,6 +437,25 @@
     }
     .perm-btn:last-child { margin-bottom: 0; }
     .perm-btn:active { opacity: 0.85; }
+    .attach-list { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+    .attach-thumb-wrap { position: relative; display: inline-block; }
+    .attach-thumb { width: 80px; height: 80px; object-fit: cover; border-radius: 8px; display: block; }
+    .attach-del-btn {
+      position: absolute; top: -6px; right: -6px;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--danger); color: white; border: none;
+      font-size: 13px; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .attach-add-label {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 10px 16px; background: var(--bg); border-radius: 10px;
+      font-size: 14px; color: var(--accent); cursor: pointer;
+      border: 1.5px dashed var(--accent); margin-top: 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .detail-attach-img { width: 100%; max-width: 320px; border-radius: 10px; margin-bottom: 8px; display: block; }
     .refresh-btn {
       background: none; border: none; cursor: pointer; color: var(--accent);
       font-size: 22px; padding: 4px; -webkit-tap-highlight-color: transparent;
@@ -609,6 +628,14 @@
       <div class="form-group">
         <label class="form-label" for="edit-notes">備考</label>
         <textarea class="form-textarea" id="edit-notes" placeholder="その他のメモ"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">画像添付</label>
+        <div class="attach-list" id="attach-preview-list"></div>
+        <label class="attach-add-label">
+          📷 画像を追加
+          <input type="file" id="attach-input" accept="image/*" multiple style="display:none">
+        </label>
       </div>
       <div class="form-group">
         <label class="form-label">関連タグ</label>
@@ -856,7 +883,7 @@ function dbCreateItem(payload) {
     repetitions:           0,
     next_review_date:      today,
     related_item_ids:      payload.related_tag_ids || [],
-    attachments:           [],
+    attachments:           payload.attachments || [],
     created_at:            today,
   });
   saveData(data);
@@ -879,6 +906,7 @@ function dbUpdateItem(id, payload) {
     notes:                 payload.notes !== undefined ? payload.notes : (item.notes || ''),
     trust_flag:            payload.trust_flag !== undefined ? payload.trust_flag : (item.trust_flag || '✅'),
     related_item_ids:      payload.related_tag_ids !== undefined ? payload.related_tag_ids : (item.related_item_ids || []),
+    attachments:           payload.attachments !== undefined ? payload.attachments : (item.attachments || []),
   };
   saveData(data);
   return true;
@@ -1388,16 +1416,18 @@ function renderDetail(itemId) {
     wrap.appendChild(relSec);
   }
 
-  // Attachments (read-only)
-  if (item.attachments && item.attachments.length) {
+  // Attachments (thumbnails)
+  const imgAtts = (item.attachments || []).filter(a => a.data);
+  if (imgAtts.length) {
     const attSec = document.createElement('div');
     attSec.className = 'detail-section';
-    attSec.innerHTML = `<div class="detail-section-title">添付資料</div>`;
-    item.attachments.forEach(a => {
-      const row = document.createElement('div');
-      row.style.cssText = 'padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; color:var(--sub);';
-      row.innerHTML = `<span>📄</span> ${esc(a.filename || a.stored_path || '')}`;
-      attSec.appendChild(row);
+    attSec.innerHTML = `<div class="detail-section-title">添付画像</div>`;
+    imgAtts.forEach(a => {
+      const img = document.createElement('img');
+      img.className = 'detail-attach-img';
+      img.src = a.data;
+      img.alt = esc(a.filename || '');
+      attSec.appendChild(img);
     });
     wrap.appendChild(attSec);
   }
@@ -1431,8 +1461,43 @@ document.getElementById('detail-back-btn').addEventListener('click', navigateBac
 // ── Edit screen ───────────────────────────────────────────────────
 let editState = {};
 
+function renderAttachList() {
+  const wrap = document.getElementById('attach-preview-list');
+  wrap.innerHTML = '';
+  (editState.attachments || []).forEach((att, idx) => {
+    if (!att.data) return;
+    const thumbWrap = document.createElement('div');
+    thumbWrap.className = 'attach-thumb-wrap';
+    const img = document.createElement('img');
+    img.className = 'attach-thumb'; img.src = att.data;
+    const del = document.createElement('button');
+    del.className = 'attach-del-btn'; del.textContent = '×';
+    del.addEventListener('click', e => {
+      e.preventDefault();
+      editState.attachments.splice(idx, 1);
+      renderAttachList();
+    });
+    thumbWrap.appendChild(img); thumbWrap.appendChild(del);
+    wrap.appendChild(thumbWrap);
+  });
+}
+
+document.getElementById('attach-input').addEventListener('change', function() {
+  const files = [...this.files];
+  Promise.all(files.map(f => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve({ filename: f.name, data: e.target.result });
+    reader.onerror = reject;
+    reader.readAsDataURL(f);
+  }))).then(results => {
+    editState.attachments.push(...results);
+    renderAttachList();
+    this.value = '';
+  });
+});
+
 function openEdit(itemId, defaultCatId) {
-  editState = { isNew: itemId === null, itemId, relatedTagIds: [] };
+  editState = { isNew: itemId === null, itemId, relatedTagIds: [], attachments: [] };
   document.getElementById('edit-screen-title').textContent = itemId ? '編集' : '新規追加';
   ['edit-name','edit-definition','edit-normal','edit-clinical','edit-diseases','edit-notes'].forEach(id => {
     document.getElementById(id).value = '';
@@ -1441,6 +1506,7 @@ function openEdit(itemId, defaultCatId) {
   document.getElementById('related-search').value = '';
   document.getElementById('related-dropdown').classList.remove('open');
   document.getElementById('related-dropdown').innerHTML = '';
+  renderAttachList();
   for (let l = 1; l <= 4; l++) {
     const sel = document.getElementById(`cat-sel-${l}`);
     sel.innerHTML = '';
@@ -1460,7 +1526,9 @@ function openEdit(itemId, defaultCatId) {
       document.getElementById('edit-diseases').value   = item.related_diseases || '';
       document.getElementById('edit-notes').value      = item.notes || '';
       editState.relatedTagIds = item.related_item_ids || [];
+      editState.attachments   = (item.attachments || []).filter(a => a.data);
       renderRelatedChips(item.related_tags);
+      renderAttachList();
       if (item.category_id) setCatCascadeById(item.category_id);
     }
   } else if (defaultCatId) {
@@ -1623,6 +1691,7 @@ function saveEdit() {
     related_diseases:      document.getElementById('edit-diseases').value.trim(),
     notes:                 document.getElementById('edit-notes').value.trim(),
     related_tag_ids:       editState.relatedTagIds,
+    attachments:           editState.attachments || [],
   };
 
   let itemId = editState.itemId;
@@ -1921,7 +1990,7 @@ const GDriveSync = (() => {
         storeToken(r.access_token, r.expires_in);
         resolve(r.access_token);
       };
-      tokenClient.requestAccessToken({ prompt: prompt || '' });
+      tokenClient.requestAccessToken({ prompt: prompt || '', hint: 's172469t@gmail.com' });
     });
   }
 
@@ -1931,7 +2000,6 @@ const GDriveSync = (() => {
   }
 
   async function tryAutoLogin() {
-    if (!hadAuth) return false;
     if (isAuthed()) return true;
     if (!navigator.onLine) return false;
     try { await requestToken(''); return true; }
@@ -2062,15 +2130,30 @@ const GDriveSync = (() => {
 
   async function onGISLoad() {
     initGIS();
-    const s = getVetSettings();
-    if (!s.driveEnabled) return;
     if (!isAuthed()) {
+      // 起動時に常にサイレント自動ログインを試みる
       const ok = await tryAutoLogin();
-      updateDriveSettingsUI();
-      if (ok && navigator.onLine) {
-        await syncFromCloud();
-        if (pendingUpload) await scheduleSyncToCloud();
+      if (ok) {
+        // 自動ログイン成功 → Drive を有効化して同期
+        const s = getVetSettings();
+        s.driveEnabled = true;
+        saveVetSettings(s);
+        updateDriveSettingsUI();
+        if (navigator.onLine) {
+          await syncFromCloud();
+          if (pendingUpload) await scheduleSyncToCloud();
+        }
+      } else {
+        // サイレントログイン失敗 → ログインボタンを表示
+        updateDriveSettingsUI();
       }
+    } else {
+      // トークン有効 → そのまま同期
+      const s = getVetSettings();
+      s.driveEnabled = true;
+      saveVetSettings(s);
+      updateDriveSettingsUI();
+      if (navigator.onLine) await syncFromCloud();
     }
   }
 
