@@ -778,7 +778,14 @@ function getData() {
 }
 
 function writeLocal(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    const json = JSON.stringify(data);
+    console.log('[save] JSON size:', (json.length / 1024).toFixed(1), 'KB');
+    localStorage.setItem(STORAGE_KEY, json);
+  } catch (e) {
+    console.error('[save] localStorage error:', e);
+    throw e;
+  }
 }
 function saveData(data) {
   writeLocal(data);
@@ -1517,17 +1524,43 @@ document.getElementById('attach-add-btn').addEventListener('click', () => {
   document.getElementById('attach-input').click();
 });
 
+// 長辺1200px・JPEG quality 0.7 に圧縮して Base64 を返す
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const MAX = 1200;
+        let { width: w, height: h } = img;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else        { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const data = canvas.toDataURL('image/jpeg', 0.7);
+        console.log('[attach]', file.name, '->', (data.length / 1024).toFixed(1), 'KB');
+        resolve({ filename: file.name, data });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 document.getElementById('attach-input').addEventListener('change', function() {
   const files = [...this.files];
-  Promise.all(files.map(f => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = e => resolve({ filename: f.name, data: e.target.result });
-    reader.onerror = reject;
-    reader.readAsDataURL(f);
-  }))).then(results => {
+  this.value = '';
+  Promise.all(files.map(compressImage)).then(results => {
     editState.attachments.push(...results);
     renderAttachList();
-    this.value = '';
+  }).catch(e => {
+    console.error('[attach] compress error:', e);
+    toast('画像の読み込みに失敗しました');
   });
 });
 
@@ -1729,13 +1762,25 @@ function saveEdit() {
     attachments:           editState.attachments || [],
   };
 
+  console.log('[saveEdit] attachments:', payload.attachments.length, '枚');
+
   let itemId = editState.itemId;
-  if (editState.isNew) {
-    itemId = dbCreateItem(payload);
-    toast('追加しました');
-  } else {
-    dbUpdateItem(itemId, payload);
-    toast('保存しました');
+  try {
+    if (editState.isNew) {
+      itemId = dbCreateItem(payload);
+      toast('追加しました');
+    } else {
+      dbUpdateItem(itemId, payload);
+      toast('保存しました');
+    }
+  } catch (e) {
+    console.error('[saveEdit] error:', e);
+    if (e.name === 'QuotaExceededError' || (e.message && e.message.includes('quota'))) {
+      toast('ストレージ容量が不足しています。画像を減らしてください。');
+    } else {
+      toast('保存に失敗しました: ' + (e.message || e));
+    }
+    return;
   }
 
   navigateBack();
