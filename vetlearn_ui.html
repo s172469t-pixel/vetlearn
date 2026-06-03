@@ -1932,19 +1932,50 @@ document.getElementById('reset-btn').addEventListener('click', async () => {
 
 // ── Image popup + カスタムピンチズーム ────────────────────────────
 const _popup = (() => {
-  const overlay = document.getElementById('img-popup');
-  const inner   = document.getElementById('img-popup-inner');
-  const img     = document.getElementById('img-popup-img');
+  const inner = document.getElementById('img-popup-inner');
+  const img   = document.getElementById('img-popup-img');
 
   const MIN = 0.5, MAX = 5;
-  let scale = 1, baseScale = 1, startDist = 0, lastTap = 0;
+  let scale = 1, baseScale = 1;
+  let tx = 0, ty = 0;          // 現在の移動量（スクリーンpx）
+  let startDist = 0;
+  let panStartX = 0, panStartY = 0;  // パン開始時の基点
+  let lastTap = 0;
+  let isPinching = false;
 
-  function setScale(s) {
-    scale = Math.min(MAX, Math.max(MIN, s));
-    img.style.transform = `scale(${scale})`;
+  function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+
+  // scale後の画像がビューポートをはみ出す最大移動量を返す
+  function maxPan() {
+    const mw = img.offsetWidth,  vh = img.offsetHeight;
+    const sw = window.innerWidth, sh = window.innerHeight;
+    return {
+      mx: Math.max(0, (mw * scale - sw) / 2),
+      my: Math.max(0, (vh * scale - sh) / 2),
+    };
   }
 
-  function reset() { scale = 1; baseScale = 1; img.style.transform = ''; }
+  function applyTransform() {
+    img.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  }
+
+  function setScale(s) {
+    scale = clamp(s, MIN, MAX);
+    if (scale <= 1) { tx = 0; ty = 0; }   // 等倍以下はパンもリセット
+    else {
+      const { mx, my } = maxPan();
+      tx = clamp(tx, -mx, mx);
+      ty = clamp(ty, -my, my);
+    }
+    applyTransform();
+  }
+
+  function reset() {
+    scale = 1; baseScale = 1;
+    tx = 0; ty = 0;
+    isPinching = false;
+    img.style.transform = '';
+  }
 
   function touchDist(t) {
     return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
@@ -1952,14 +1983,21 @@ const _popup = (() => {
 
   inner.addEventListener('touchstart', e => {
     if (e.touches.length === 2) {
+      // ピンチ開始
       e.preventDefault();
-      startDist = touchDist(e.touches);
-      baseScale = scale;
+      isPinching = true;
+      startDist  = touchDist(e.touches);
+      baseScale  = scale;
     } else if (e.touches.length === 1) {
       const now = Date.now();
       if (now - lastTap < 280) {
+        // ダブルタップ：等倍⇔2倍トグル
         e.preventDefault();
-        setScale(scale === 1 ? 2 : 1);  // ダブルタップで等倍/2倍トグル
+        setScale(scale === 1 ? 2 : 1);
+      } else {
+        // パン開始：現在の位置を基点に記録
+        panStartX = e.touches[0].clientX - tx;
+        panStartY = e.touches[0].clientY - ty;
       }
       lastTap = now;
     }
@@ -1967,12 +2005,28 @@ const _popup = (() => {
 
   inner.addEventListener('touchmove', e => {
     if (e.touches.length === 2) {
+      // ピンチ中
       e.preventDefault();
       setScale(baseScale * (touchDist(e.touches) / startDist));
+    } else if (e.touches.length === 1 && !isPinching && scale > 1) {
+      // パン中（等倍時は移動不可）
+      e.preventDefault();
+      const { mx, my } = maxPan();
+      tx = clamp(e.touches[0].clientX - panStartX, -mx, mx);
+      ty = clamp(e.touches[0].clientY - panStartY, -my, my);
+      applyTransform();
     }
   }, { passive: false });
 
-  inner.addEventListener('touchend', () => { baseScale = scale; });
+  inner.addEventListener('touchend', e => {
+    if (e.touches.length < 2) isPinching = false;
+    baseScale = scale;
+    // 2本指→1本指へ移行時にパン基点を更新（飛びを防ぐ）
+    if (e.touches.length === 1) {
+      panStartX = e.touches[0].clientX - tx;
+      panStartY = e.touches[0].clientY - ty;
+    }
+  }, { passive: true });
 
   return { reset };
 })();
