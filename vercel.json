@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/vetlearn_ui.html" }
+  ]
+}

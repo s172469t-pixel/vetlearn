@@ -1,0 +1,2109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#007AFF">
+  <title>獣医学習DB</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --safe-top: env(safe-area-inset-top);
+      --safe-bottom: env(safe-area-inset-bottom);
+      --header-h: 56px;
+      --accent: #007AFF;
+      --bg: #F2F2F7;
+      --card: #FFFFFF;
+      --text: #1C1C1E;
+      --sub: #8E8E93;
+      --danger: #FF3B30;
+      --green: #34C759;
+      --orange: #FF9500;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100dvh; overflow-x: hidden;
+      overscroll-behavior-y: contain;
+    }
+    header {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: calc(var(--header-h) + var(--safe-top));
+      padding-top: var(--safe-top);
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+      display: flex; align-items: center; padding-inline: 12px;
+      z-index: 100;
+    }
+    .header-title {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      font-size: 17px; font-weight: 600;
+    }
+    #hamburger-btn {
+      width: 44px; height: 44px;
+      display: flex; align-items: center; justify-content: center;
+      background: none; border: none; cursor: pointer;
+      -webkit-tap-highlight-color: transparent; flex-shrink: 0; color: var(--text);
+    }
+    #drawer-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    #drawer-overlay.open { opacity: 1; pointer-events: auto; }
+    #drawer {
+      position: fixed; top: 0; left: 0; bottom: 0; width: 280px;
+      background: var(--card); z-index: 201;
+      transform: translateX(-100%);
+      transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      display: flex; flex-direction: column; padding-top: var(--safe-top);
+    }
+    #drawer.open { transform: translateX(0); }
+    .drawer-header {
+      height: var(--header-h); display: flex; align-items: center;
+      padding-inline: 20px; font-size: 20px; font-weight: 700;
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+    .drawer-menu { list-style: none; padding: 12px 0; }
+    .drawer-menu li a {
+      display: flex; align-items: center; gap: 14px; padding: 16px 20px;
+      font-size: 16px; font-weight: 500; color: var(--text); text-decoration: none;
+      -webkit-tap-highlight-color: transparent; cursor: pointer;
+    }
+    .drawer-menu li a:active { background: var(--bg); }
+    .drawer-menu li a .icon { font-size: 20px; width: 26px; text-align: center; }
+    #screen-home {
+      padding-top: calc(var(--header-h) + var(--safe-top) + 12px);
+      padding-bottom: calc(80px + var(--safe-bottom));
+      padding-inline: 16px; min-height: 100dvh;
+    }
+    .section-label {
+      font-size: 13px; font-weight: 600; color: var(--sub);
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 8px; padding-left: 4px;
+    }
+    .section-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .section-row .section-label { margin-bottom: 0; }
+    .search-wrap { position: relative; margin-bottom: 20px; }
+    .search-wrap input {
+      width: 100%; padding: 10px 36px 10px 38px;
+      background: var(--card); border: none; border-radius: 12px;
+      font-size: 16px; font-family: inherit; color: var(--text);
+      outline: none; -webkit-appearance: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .search-wrap input:focus { box-shadow: 0 0 0 2px var(--accent); }
+    .search-icon {
+      position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+      color: var(--sub); pointer-events: none;
+    }
+    .search-clear {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      width: 28px; height: 28px; border-radius: 50%; background: var(--sub);
+      border: none; color: white; font-size: 13px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .search-clear.hidden { display: none; }
+    .review-card {
+      background: var(--card); border-radius: 14px; padding: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.09); margin-bottom: 12px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: transform 0.1s; user-select: none;
+    }
+    .review-card:active { transform: scale(0.98); }
+    .review-card-top {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+      margin-bottom: 8px;
+    }
+    .review-card-name { font-size: 18px; font-weight: 700; line-height: 1.3; flex: 1; }
+    .review-card-trust { font-size: 20px; flex-shrink: 0; }
+    .review-card-crumb { font-size: 11px; color: var(--sub); margin-bottom: 8px; }
+    .review-card-bottom { display: flex; align-items: center; justify-content: space-between; }
+    .stars-small { display: flex; gap: 2px; }
+    .star-s { font-size: 14px; color: #C7C7CC; }
+    .star-s.on { color: var(--orange); }
+    .overdue-badge {
+      font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+      background: #FF3B3020; color: var(--danger);
+    }
+    .review-date-small { font-size: 11px; color: var(--sub); }
+    .item-row {
+      background: var(--card); border-radius: 12px; padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07); margin-bottom: 8px;
+      cursor: pointer; -webkit-tap-highlight-color: transparent; display: flex;
+      align-items: center; gap: 10px; user-select: none;
+    }
+    .item-row:active { background: #F8F8F8; }
+    .item-row-main { flex: 1; min-width: 0; }
+    .item-row-name { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
+    .item-row-sub { font-size: 11px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-row-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .item-trust { font-size: 16px; }
+    .sel-item-row {
+      background: var(--card); border-radius: 12px; margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07); display: flex; align-items: stretch;
+      overflow: hidden; border: 2px solid transparent;
+      transition: border-color 0.15s, background 0.15s; user-select: none;
+    }
+    .sel-item-row.checked { border-color: var(--accent); background: rgba(0,122,255,0.07); }
+    .sel-cb-area {
+      width: 52px; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; cursor: pointer; -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .sel-cb-icon {
+      width: 24px; height: 24px; border-radius: 7px;
+      border: 2px solid #C7C7CC; background: white;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background 0.15s, border-color 0.15s;
+      pointer-events: none;
+    }
+    .sel-cb-icon.on { background: var(--accent); border-color: var(--accent); }
+    .sel-cb-icon.on::after {
+      content: ''; display: block; width: 5px; height: 9px;
+      border-right: 2.5px solid white; border-bottom: 2.5px solid white;
+      transform: rotate(45deg) translate(-1px, -1px);
+    }
+    .sel-item-content {
+      flex: 1; padding: 14px 14px 14px 0;
+      cursor: pointer; -webkit-tap-highlight-color: transparent; min-width: 0;
+    }
+    #items-delete-bar {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      padding: 12px 16px; padding-bottom: calc(12px + var(--safe-bottom));
+      background: rgba(255,255,255,0.96);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(0,0,0,0.1);
+      transform: translateY(100%);
+      transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); z-index: 1;
+    }
+    #items-delete-bar.visible { transform: translateY(0); }
+    #items-delete-btn {
+      width: 100%; background: var(--danger); color: white;
+      border: none; border-radius: 12px; padding: 14px;
+      font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #items-delete-btn:active { opacity: 0.85; }
+    #fab {
+      position: fixed; right: 20px; bottom: calc(20px + var(--safe-bottom));
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--accent); color: white; font-size: 28px;
+      border: none; box-shadow: 0 4px 12px rgba(0,122,255,0.4);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      z-index: 100; -webkit-tap-highlight-color: transparent;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    #fab:active { transform: scale(0.92); }
+    .sub-screen {
+      position: fixed; inset: 0; background: var(--bg); z-index: 220;
+      transform: translateX(100%);
+      transition: transform 0.35s cubic-bezier(0.4,0,0.2,1);
+      display: flex; flex-direction: column; padding-top: var(--safe-top);
+      overflow: hidden;
+    }
+    .sub-screen.open { transform: translateX(0); }
+    .sub-header {
+      height: var(--header-h); flex-shrink: 0;
+      background: rgba(255,255,255,0.88);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 1px solid rgba(0,0,0,0.1);
+      display: flex; align-items: center; justify-content: space-between;
+      padding-inline: 4px;
+    }
+    .sub-back-btn {
+      width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+      background: none; border: none; cursor: pointer; font-size: 26px; color: var(--accent);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sub-back-text {
+      height: 44px; display: flex; align-items: center; padding-inline: 12px;
+      background: none; border: none; cursor: pointer; font-size: 16px; color: var(--accent);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .sub-header-title { font-size: 17px; font-weight: 600; }
+    .sub-header-action {
+      height: 44px; display: flex; align-items: center; padding-inline: 12px;
+      background: none; border: none; cursor: pointer; font-size: 16px;
+      color: var(--accent); font-weight: 600; -webkit-tap-highlight-color: transparent;
+    }
+    .sub-body {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(20px + var(--safe-bottom));
+    }
+    .cat-list { list-style: none; }
+    .cat-node { border-bottom: 1px solid rgba(0,0,0,0.06); }
+    .cat-row {
+      display: flex; align-items: center; gap: 4px; padding: 0 16px;
+      min-height: 50px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .cat-row:active { background: #F0F0F5; }
+    .cat-chevron-btn {
+      width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+      background: none; border: none; cursor: pointer; color: var(--sub); flex-shrink: 0;
+      font-size: 18px; transition: transform 0.2s; -webkit-tap-highlight-color: transparent;
+    }
+    .cat-node.expanded > .cat-row > .cat-chevron-btn { transform: rotate(90deg); }
+    .cat-name-btn {
+      flex: 1; text-align: left; background: none; border: none;
+      font-size: 15px; font-family: inherit; color: var(--text); cursor: pointer;
+      padding: 12px 0; -webkit-tap-highlight-color: transparent;
+    }
+    .cat-count { font-size: 12px; color: var(--sub); flex-shrink: 0; }
+    .cat-children {
+      display: none; padding-left: 16px;
+      border-left: 2px solid rgba(0,122,255,0.2); margin-left: 28px;
+    }
+    .cat-node.expanded > .cat-children { display: block; }
+    .cat-spacer { width: 32px; flex-shrink: 0; }
+    .detail-wrap { padding: 20px 16px; }
+    .breadcrumb {
+      display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+      font-size: 11px; color: var(--sub); margin-bottom: 16px; line-height: 1.4;
+    }
+    .breadcrumb-sep { opacity: 0.6; }
+    .detail-name { font-size: 26px; font-weight: 800; margin-bottom: 16px; line-height: 1.2; }
+    .detail-meta-card {
+      background: var(--card); border-radius: 14px; padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 20px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .meta-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .meta-label { font-size: 12px; color: var(--sub); font-weight: 500; flex-shrink: 0; }
+    .review-date-val { font-size: 14px; font-weight: 500; }
+    .review-date-val.overdue { color: var(--danger); }
+    .stars-big { display: flex; gap: 6px; }
+    .star-big {
+      font-size: 26px; cursor: pointer; color: #C7C7CC;
+      -webkit-tap-highlight-color: transparent; transition: transform 0.1s;
+      user-select: none;
+    }
+    .star-big.on { color: var(--orange); }
+    .star-big:active { transform: scale(1.25); }
+    .trust-flag-btn {
+      font-size: 28px; cursor: pointer; background: none; border: none;
+      -webkit-tap-highlight-color: transparent; padding: 4px;
+      transition: transform 0.15s;
+    }
+    .trust-flag-btn:active { transform: scale(1.3); }
+    .detail-section {
+      background: var(--card); border-radius: 14px; padding: 14px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 12px;
+    }
+    .detail-section-title {
+      font-size: 12px; font-weight: 600; color: var(--sub); text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 8px;
+    }
+    .detail-section-body { font-size: 15px; line-height: 1.7; white-space: pre-wrap; color: var(--text); }
+    .detail-section-empty { font-size: 14px; color: var(--sub); font-style: italic; }
+    .related-tags-wrap { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; }
+    .related-tag-chip {
+      padding: 6px 12px; border-radius: 20px; background: rgba(0,122,255,0.1);
+      color: var(--accent); font-size: 13px; font-weight: 500;
+      cursor: pointer; -webkit-tap-highlight-color: transparent; border: none;
+    }
+    .related-tag-chip:active { background: rgba(0,122,255,0.2); }
+    .detail-edit-btn {
+      width: 100%; margin-top: 20px; padding: 15px;
+      background: var(--accent); color: white; border: none; border-radius: 14px;
+      font-size: 16px; font-weight: 600; cursor: pointer; font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .detail-edit-btn:active { opacity: 0.85; }
+    .detail-delete-btn {
+      width: 100%; margin-top: 10px; padding: 15px;
+      background: none; color: var(--danger); border: 1px solid var(--danger);
+      border-radius: 14px; font-size: 16px; font-weight: 500;
+      cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent;
+    }
+    .detail-delete-btn:active { background: #FF3B3010; }
+    .edit-wrap { padding: 16px; }
+    .form-group { margin-bottom: 18px; }
+    .form-label { font-size: 13px; color: var(--sub); margin-bottom: 6px; display: block; font-weight: 500; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; background: var(--card); border: none; border-radius: 10px;
+      padding: 12px 14px; font-size: 15px; font-family: inherit; color: var(--text);
+      outline: none; -webkit-appearance: none; appearance: none;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    }
+    .form-select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238E8E93' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center;
+      padding-right: 36px; cursor: pointer;
+    }
+    .form-textarea { resize: none; min-height: 80px; line-height: 1.6; }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { box-shadow: 0 0 0 2px var(--accent); }
+    .cat-selects { display: flex; flex-direction: column; gap: 8px; }
+    .cat-level-wrap { display: flex; align-items: center; gap: 6px; }
+    .cat-level-label { font-size: 11px; color: var(--sub); flex-shrink: 0; width: 44px; }
+    .related-edit-wrap { display: flex; flex-direction: column; gap: 8px; }
+    .related-chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 24px; }
+    .rel-chip {
+      display: flex; align-items: center; gap: 4px; padding: 4px 10px;
+      background: rgba(0,122,255,0.12); border-radius: 20px; font-size: 13px; color: var(--accent);
+    }
+    .rel-chip-del {
+      background: none; border: none; cursor: pointer; color: var(--accent);
+      font-size: 16px; line-height: 1; padding: 0 2px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .related-dropdown {
+      background: var(--card); border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+      max-height: 180px; overflow-y: auto; display: none;
+    }
+    .related-dropdown.open { display: block; }
+    .rel-option {
+      padding: 12px 14px; cursor: pointer; font-size: 14px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .rel-option:last-child { border-bottom: none; }
+    .rel-option:active { background: var(--bg); }
+    #toast {
+      position: fixed; bottom: calc(32px + var(--safe-bottom)); left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,0.75); color: white; padding: 10px 20px;
+      border-radius: 20px; font-size: 14px; font-weight: 500;
+      z-index: 999; opacity: 0; pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #confirm-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 800;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s; padding-inline: 32px;
+    }
+    #confirm-overlay.open { opacity: 1; pointer-events: auto; }
+    #confirm-box {
+      background: var(--card); border-radius: 16px; width: 100%; max-width: 300px;
+      overflow: hidden; transform: scale(0.92); transition: transform 0.2s;
+    }
+    #confirm-overlay.open #confirm-box { transform: scale(1); }
+    .confirm-body { padding: 22px 20px 14px; text-align: center; }
+    .confirm-body h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+    .confirm-body p { font-size: 14px; color: var(--sub); line-height: 1.5; }
+    .confirm-actions { display: flex; border-top: 1px solid rgba(0,0,0,0.08); }
+    .confirm-btn {
+      flex: 1; padding: 14px; border: none; background: none;
+      font-size: 16px; cursor: pointer; font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .confirm-btn:active { background: var(--bg); }
+    .confirm-btn + .confirm-btn { border-left: 1px solid rgba(0,0,0,0.08); }
+    .confirm-cancel { color: var(--sub); }
+    .confirm-ok { color: var(--danger); font-weight: 600; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--sub); }
+    .empty-state .emoji { font-size: 44px; margin-bottom: 12px; }
+    .empty-state p { font-size: 15px; }
+    .hidden { display: none !important; }
+    .spinner { text-align: center; padding: 40px 20px; color: var(--sub); font-size: 14px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin-icon { display: inline-block; animation: spin 0.8s linear infinite; font-size: 20px; margin-right: 8px; }
+    #sync-indicator {
+      position: absolute; right: 12px;
+      width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    #sync-indicator.active { opacity: 1; }
+    #sync-indicator svg { animation: spin 0.9s linear infinite; }
+    .toggle { position: relative; width: 51px; height: 31px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track { position: absolute; inset: 0; background: #E5E5EA; border-radius: 31px; transition: background 0.25s; cursor: pointer; }
+    .toggle input:checked + .toggle-track { background: var(--green); }
+    .toggle-thumb {
+      position: absolute; top: 2px; left: 2px; width: 27px; height: 27px;
+      background: white; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); pointer-events: none;
+    }
+    .toggle input:checked ~ .toggle-thumb { transform: translateX(20px); }
+    .settings-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .settings-toggle-label { font-size: 15px; font-weight: 500; color: var(--text); }
+    .settings-toggle-sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .perm-btn {
+      width: 100%; padding: 12px; border: none; border-radius: 10px;
+      background: var(--accent); color: white; font-size: 14px; font-weight: 600;
+      cursor: pointer; font-family: inherit; margin-bottom: 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .perm-btn:last-child { margin-bottom: 0; }
+    .perm-btn:active { opacity: 0.85; }
+    .refresh-btn {
+      background: none; border: none; cursor: pointer; color: var(--accent);
+      font-size: 22px; padding: 4px; -webkit-tap-highlight-color: transparent;
+    }
+    .refresh-btn:active { transform: rotate(180deg); transition: transform 0.4s; }
+    /* Settings screen */
+    .settings-card {
+      background: var(--card); border-radius: 14px; padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px;
+    }
+    .settings-card-title {
+      font-size: 13px; font-weight: 600; color: var(--sub); text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 12px;
+    }
+    .settings-btn {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit;
+      margin-bottom: 10px; -webkit-tap-highlight-color: transparent;
+    }
+    .settings-btn:last-child { margin-bottom: 0; }
+    .settings-btn:active { opacity: 0.85; }
+    .settings-btn-primary { background: var(--accent); color: white; }
+    .settings-btn-success { background: var(--green); color: white; }
+    .settings-btn-danger { background: none; color: var(--danger); border: 1px solid var(--danger); }
+    .settings-hint { font-size: 12px; color: var(--sub); line-height: 1.6; margin-top: 8px; }
+    .data-stat {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.06); font-size: 14px;
+    }
+    .data-stat:last-child { border-bottom: none; }
+    .data-stat-val { font-weight: 600; color: var(--accent); }
+    #file-import-input { display: none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <button id="hamburger-btn" aria-label="メニュー">
+    <svg width="22" height="15" viewBox="0 0 22 15" fill="currentColor">
+      <rect width="22" height="2.2" rx="1.1"/>
+      <rect y="6.4" width="22" height="2.2" rx="1.1"/>
+      <rect y="12.8" width="22" height="2.2" rx="1.1"/>
+    </svg>
+  </button>
+  <span class="header-title">獣医学習DB</span>
+  <div id="sync-indicator" aria-label="同期中">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+    </svg>
+  </div>
+</header>
+
+<div id="drawer-overlay"></div>
+<nav id="drawer">
+  <div class="drawer-header">メニュー</div>
+  <ul class="drawer-menu">
+    <li><a href="#" id="menu-categories"><span class="icon">📚</span>項目一覧</a></li>
+    <li><a href="#" id="menu-settings"><span class="icon">⚙️</span>設定・インポート</a></li>
+  </ul>
+</nav>
+
+<main id="screen-home">
+  <div class="search-wrap">
+    <span class="search-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+    </span>
+    <input type="search" id="search-input" placeholder="タグを検索..." autocomplete="off" autocorrect="off">
+    <button class="search-clear hidden" id="search-clear">✕</button>
+  </div>
+  <div id="search-section" class="hidden">
+    <div class="section-label">検索結果</div>
+    <div id="search-results"></div>
+  </div>
+  <div id="random-section">
+    <div class="section-row">
+      <span class="section-label">復習タグ</span>
+      <button class="refresh-btn" id="refresh-btn" title="更新">↻</button>
+    </div>
+    <div id="random-cards"></div>
+  </div>
+</main>
+
+<button id="fab" aria-label="新規追加">＋</button>
+
+<!-- Category tree -->
+<div id="screen-categories" class="sub-screen">
+  <div class="sub-header">
+    <button class="sub-back-btn" id="cat-back-btn">‹</button>
+    <span class="sub-header-title">項目一覧</span>
+    <div style="width:44px"></div>
+  </div>
+  <div class="sub-body" id="cat-tree-body"></div>
+</div>
+
+<!-- Items list -->
+<div id="screen-items" class="sub-screen">
+  <div class="sub-header">
+    <button class="sub-back-btn" id="items-back-btn">‹</button>
+    <span class="sub-header-title" id="items-title">項目</span>
+    <button class="sub-header-action" id="add-item-btn">＋</button>
+  </div>
+  <div class="sub-body" id="items-body" style="padding-bottom: calc(80px + var(--safe-bottom))"></div>
+  <div id="items-delete-bar">
+    <button id="items-delete-btn">削除</button>
+  </div>
+</div>
+
+<!-- Detail -->
+<div id="screen-detail" class="sub-screen">
+  <div class="sub-header">
+    <button class="sub-back-btn" id="detail-back-btn">‹</button>
+    <span class="sub-header-title">詳細</span>
+    <div style="width:44px"></div>
+  </div>
+  <div class="sub-body" id="detail-body"></div>
+</div>
+
+<!-- Edit -->
+<div id="screen-edit" class="sub-screen">
+  <div class="sub-header">
+    <button class="sub-back-text" id="edit-cancel-btn">キャンセル</button>
+    <span class="sub-header-title" id="edit-screen-title">新規追加</span>
+    <button class="sub-header-action" id="edit-save-btn">保存</button>
+  </div>
+  <div class="sub-body">
+    <div class="edit-wrap">
+      <div class="form-group">
+        <label class="form-label">カテゴリ</label>
+        <div class="cat-selects">
+          <div class="cat-level-wrap">
+            <span class="cat-level-label">Lv.1</span>
+            <select class="form-select" id="cat-sel-1"></select>
+          </div>
+          <div class="cat-level-wrap" id="cat-lv2-wrap" style="display:none">
+            <span class="cat-level-label">Lv.2</span>
+            <select class="form-select" id="cat-sel-2"></select>
+          </div>
+          <div class="cat-level-wrap" id="cat-lv3-wrap" style="display:none">
+            <span class="cat-level-label">Lv.3</span>
+            <select class="form-select" id="cat-sel-3"></select>
+          </div>
+          <div class="cat-level-wrap" id="cat-lv4-wrap" style="display:none">
+            <span class="cat-level-label">Lv.4</span>
+            <select class="form-select" id="cat-sel-4"></select>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-name">メインタグ *</label>
+        <input class="form-input" id="edit-name" type="text" placeholder="例: BUN, CKD, 代謝性アシドーシス" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-definition">定義</label>
+        <textarea class="form-textarea" id="edit-definition" placeholder="定義・概念を入力"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-normal">正常値</label>
+        <textarea class="form-textarea" id="edit-normal" placeholder="基準値・参照範囲"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-clinical">臨床的意義</label>
+        <textarea class="form-textarea" id="edit-clinical" placeholder="臨床的意義・解釈"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-diseases">関連疾患</label>
+        <textarea class="form-textarea" id="edit-diseases" placeholder="関連する疾患・病態"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="edit-notes">備考</label>
+        <textarea class="form-textarea" id="edit-notes" placeholder="その他のメモ"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">関連タグ</label>
+        <div class="related-edit-wrap">
+          <div class="related-chips" id="related-chips"></div>
+          <input class="form-input" id="related-search" type="text" placeholder="タグ名で検索して追加..." autocomplete="off">
+          <div class="related-dropdown" id="related-dropdown"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div id="screen-settings" class="sub-screen">
+  <div class="sub-header">
+    <button class="sub-back-btn" id="settings-back-btn">‹</button>
+    <span class="sub-header-title">設定・インポート</span>
+    <div style="width:44px"></div>
+  </div>
+  <div class="sub-body">
+    <div class="edit-wrap">
+      <div class="settings-card">
+        <div class="settings-card-title">データ統計</div>
+        <div id="data-stats"></div>
+      </div>
+      <div class="settings-card">
+        <div class="settings-card-title">データ同期</div>
+        <div class="settings-toggle-row" style="margin-bottom:12px">
+          <div>
+            <div class="settings-toggle-label">Googleドライブ連携</div>
+            <div class="settings-toggle-sub">vetlearn_data.jsonを自動同期</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="setting-drive-toggle">
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div id="setting-drive-subrow" style="display:none">
+          <div id="drive-signin-area">
+            <button id="drive-sign-in-btn" class="perm-btn">Googleアカウントでログイン</button>
+          </div>
+          <div id="drive-account-area" style="display:none">
+            <div id="drive-account-status" style="font-size:13px; color:var(--sub); margin-bottom:8px; text-align:center"></div>
+            <button id="drive-sign-out-btn" class="perm-btn" style="background:var(--danger)">ログアウト</button>
+          </div>
+          <div id="drive-sync-status" style="margin-top:8px; font-size:12px; color:var(--sub); text-align:center; min-height:16px"></div>
+        </div>
+      </div>
+      <div class="settings-card">
+        <div class="settings-card-title">JSONインポート</div>
+        <button class="settings-btn settings-btn-primary" id="import-file-btn">📂 JSONファイルを選択してインポート</button>
+        <input type="file" id="file-import-input" accept=".json">
+        <p class="settings-hint">vetlearn_data.jsonを選択するとデータを読み込みます。既存の習熟度・信頼度・SM-2データは保持されます。</p>
+      </div>
+      <div class="settings-card">
+        <div class="settings-card-title">JSONエクスポート</div>
+        <button class="settings-btn settings-btn-success" id="export-btn">⬆️ JSONをダウンロード</button>
+        <p class="settings-hint">現在のデータをvetlearn_data.jsonとしてダウンロードします。Google Driveにアップロードしてバックアップしてください。</p>
+      </div>
+      <div class="settings-card">
+        <div class="settings-card-title">危険な操作</div>
+        <button class="settings-btn settings-btn-danger" id="reset-btn">ローカルデータをすべて削除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="confirm-overlay">
+  <div id="confirm-box">
+    <div class="confirm-body">
+      <h3 id="confirm-title">削除しますか？</h3>
+      <p id="confirm-msg"></p>
+    </div>
+    <div class="confirm-actions">
+      <button class="confirm-btn confirm-cancel" id="confirm-cancel">キャンセル</button>
+      <button class="confirm-btn confirm-ok" id="confirm-ok">削除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── Storage layer ─────────────────────────────────────────────────
+const STORAGE_KEY      = 'vetlearn_data';
+const GDRIVE_CLIENT_ID  = '495529323787-74hfjtbva20vvj312f94g5dh4e5rgags.apps.googleusercontent.com';
+const GDRIVE_FILE_NAME  = 'vetlearn_data.json';
+const GDRIVE_TOKEN_KEY  = 'vetlearn_gdrive_token';
+const GDRIVE_FILEID_KEY = 'vetlearn_gdrive_fileid';
+const GDRIVE_AUTHED_KEY = 'vetlearn_gdrive_authed';
+const SETTINGS_KEY      = 'vetlearn_settings';
+
+function getVetSettings() {
+  try { return { driveEnabled: false, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }; }
+  catch { return { driveEnabled: false }; }
+}
+function saveVetSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
+
+function getData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { categories: [], items: [], nextId: { categories: 1, items: 1 } };
+    const d = JSON.parse(raw);
+    if (!d.nextId) d.nextId = { categories: 1, items: 1 };
+    return d;
+  } catch { return { categories: [], items: [], nextId: { categories: 1, items: 1 } }; }
+}
+
+function writeLocal(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+function saveData(data) {
+  writeLocal(data);
+  GDriveSync.scheduleSyncToCloud();
+}
+
+function allocId(data, type) {
+  if (!data.nextId) data.nextId = { categories: 1, items: 1 };
+  const id = data.nextId[type] || 1;
+  data.nextId[type] = id + 1;
+  return id;
+}
+
+// ── SM-2 ──────────────────────────────────────────────────────────
+function sm2(grade, ef, iv, reps) {
+  let newIv, newReps, newEf;
+  if (grade >= 3) {
+    newIv   = reps === 0 ? 1 : reps === 1 ? 6 : Math.round(iv * ef);
+    newReps = reps + 1;
+    newEf   = Math.max(1.3, ef + 0.1 - (5 - grade) * (0.08 + (5 - grade) * 0.02));
+  } else {
+    newIv = 1; newReps = 0; newEf = Math.max(1.3, ef - 0.2);
+  }
+  const d = new Date();
+  d.setDate(d.getDate() + newIv);
+  return { ef: +newEf.toFixed(4), iv: newIv, reps: newReps, nextDate: d.toISOString().slice(0, 10) };
+}
+
+// ── Item helpers ──────────────────────────────────────────────────
+function normalizeItem(i) {
+  return {
+    ...i,
+    name:             i.name || i.title || '',
+    trust_flag:       i.trust_flag || '✅',
+    proficiency:      i.proficiency || 0,
+    ease_factor:      i.ease_factor || 2.5,
+    interval_days:    i.interval_days || i.interval || 1,
+    repetitions:      i.repetitions || 0,
+    next_review_date: i.next_review_date || i.next_review || null,
+    related_item_ids: i.related_item_ids || [],
+    attachments:      i.attachments || [],
+  };
+}
+
+function getDescendantIds(categories, catId) {
+  const result = new Set([catId]);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    categories.forEach(c => {
+      if (c.parent_id !== null && c.parent_id !== undefined && result.has(c.parent_id) && !result.has(c.id)) {
+        result.add(c.id); changed = true;
+      }
+    });
+  }
+  return result;
+}
+
+function buildCrumb(categories, catId) {
+  const crumbs = [];
+  let cid = catId;
+  while (cid) {
+    const c = categories.find(x => x.id === cid);
+    if (!c) break;
+    crumbs.unshift({ id: c.id, name: c.name });
+    cid = c.parent_id;
+  }
+  return crumbs;
+}
+
+// CRUD
+function dbGetItems(q, catId) {
+  const data = getData();
+  let items = data.items;
+  if (q) {
+    const lower = q.toLowerCase();
+    items = items.filter(i => (i.name || i.title || '').toLowerCase().includes(lower));
+  } else if (catId !== undefined && catId !== null) {
+    const catIds = getDescendantIds(data.categories, catId);
+    items = items.filter(i => catIds.has(i.category_id));
+  }
+  return items.map(normalizeItem).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+}
+
+function dbGetItem(id) {
+  const data = getData();
+  const item = data.items.find(i => i.id === id);
+  if (!item) return null;
+  const norm = normalizeItem(item);
+  norm.breadcrumb  = buildCrumb(data.categories, norm.category_id);
+  norm.related_tags = (norm.related_item_ids).map(rid => {
+    const rel = data.items.find(i => i.id === rid);
+    return rel ? { id: rel.id, name: rel.name || rel.title || '' } : null;
+  }).filter(Boolean);
+  return norm;
+}
+
+function dbGetRandom() {
+  const data = getData();
+  const today = new Date().toISOString().slice(0, 10);
+  const seen = new Set();
+  const res  = [];
+  const add  = i => { if (!seen.has(i.id)) { seen.add(i.id); res.push(normalizeItem(i)); } };
+
+  data.items.filter(i => (i.next_review_date || i.next_review) && (i.next_review_date || i.next_review) <= today)
+    .sort((a, b) => (a.next_review_date || a.next_review || '').localeCompare(b.next_review_date || b.next_review || ''))
+    .forEach(add);
+  data.items.filter(i => ['⚠️','❓'].includes(i.trust_flag))
+    .sort((a, b) => (a.proficiency||0) - (b.proficiency||0))
+    .forEach(add);
+  [...data.items].sort((a, b) => (a.proficiency||0) - (b.proficiency||0)).forEach(add);
+  return res.slice(0, 3);
+}
+
+function dbCreateItem(payload) {
+  const data  = getData();
+  const id    = allocId(data, 'items');
+  const today = new Date().toISOString().slice(0, 10);
+  data.items.push({
+    id,
+    name:                  (payload.name || '').trim(),
+    category_id:           payload.category_id || null,
+    definition:            payload.definition || '',
+    normal_values:         payload.normal_values || '',
+    clinical_significance: payload.clinical_significance || '',
+    related_diseases:      payload.related_diseases || '',
+    notes:                 payload.notes || '',
+    proficiency:           0,
+    trust_flag:            '✅',
+    ease_factor:           2.5,
+    interval_days:         1,
+    repetitions:           0,
+    next_review_date:      today,
+    related_item_ids:      payload.related_tag_ids || [],
+    attachments:           [],
+    created_at:            today,
+  });
+  saveData(data);
+  return id;
+}
+
+function dbUpdateItem(id, payload) {
+  const data = getData();
+  const idx  = data.items.findIndex(i => i.id === id);
+  if (idx < 0) return false;
+  const item = data.items[idx];
+  data.items[idx] = {
+    ...item,
+    name:                  payload.name !== undefined ? payload.name : (item.name || item.title || ''),
+    category_id:           payload.category_id !== undefined ? payload.category_id : item.category_id,
+    definition:            payload.definition !== undefined ? payload.definition : (item.definition || ''),
+    normal_values:         payload.normal_values !== undefined ? payload.normal_values : (item.normal_values || ''),
+    clinical_significance: payload.clinical_significance !== undefined ? payload.clinical_significance : (item.clinical_significance || ''),
+    related_diseases:      payload.related_diseases !== undefined ? payload.related_diseases : (item.related_diseases || ''),
+    notes:                 payload.notes !== undefined ? payload.notes : (item.notes || ''),
+    trust_flag:            payload.trust_flag !== undefined ? payload.trust_flag : (item.trust_flag || '✅'),
+    related_item_ids:      payload.related_tag_ids !== undefined ? payload.related_tag_ids : (item.related_item_ids || []),
+  };
+  saveData(data);
+  return true;
+}
+
+function dbUpdateProficiency(id, grade) {
+  const data = getData();
+  const idx  = data.items.findIndex(i => i.id === id);
+  if (idx < 0) return null;
+  const item = data.items[idx];
+  const { ef, iv, reps, nextDate } = sm2(grade, item.ease_factor || 2.5, item.interval_days || item.interval || 1, item.repetitions || 0);
+  data.items[idx] = { ...item, proficiency: grade, ease_factor: ef, interval_days: iv, repetitions: reps, next_review_date: nextDate };
+  saveData(data);
+  return nextDate;
+}
+
+function dbUpdateTrust(id, flag) {
+  const data = getData();
+  const idx  = data.items.findIndex(i => i.id === id);
+  if (idx < 0) return false;
+  data.items[idx] = { ...data.items[idx], trust_flag: flag };
+  saveData(data);
+  return true;
+}
+
+function dbDeleteItem(id) {
+  const data = getData();
+  data.items = data.items.filter(i => i.id !== id);
+  data.items.forEach(i => {
+    if (i.related_item_ids) i.related_item_ids = i.related_item_ids.filter(r => r !== id);
+  });
+  saveData(data);
+}
+
+function dbCreateCategory(name, parentId, level) {
+  const data = getData();
+  const id   = allocId(data, 'categories');
+  const cat  = { id, name: name.trim(), parent_id: parentId || null, level: level || 1 };
+  data.categories.push(cat);
+  saveData(data);
+  return cat;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────
+function toast(msg, ms = 2200) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ── Confirm dialog ────────────────────────────────────────────────
+let confirmResolve = null;
+function showConfirm(title, msg, okLabel = '削除') {
+  return new Promise(res => {
+    confirmResolve = res;
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent   = msg;
+    document.getElementById('confirm-ok').textContent    = okLabel;
+    document.getElementById('confirm-overlay').classList.add('open');
+  });
+}
+document.getElementById('confirm-cancel').addEventListener('click', () => {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
+});
+document.getElementById('confirm-ok').addEventListener('click', () => {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  if (confirmResolve) { confirmResolve(true); confirmResolve = null; }
+});
+
+// ── Navigation ────────────────────────────────────────────────────
+const navStack = [];
+function navigateTo(screenId) {
+  const el = document.getElementById(screenId);
+  el.style.zIndex = 220 + navStack.length;
+  navStack.push(screenId);
+  el.classList.add('open');
+}
+function navigateBack() {
+  if (!navStack.length) return;
+  const screenId = navStack.pop();
+  document.getElementById(screenId).classList.remove('open');
+}
+
+// ── Drawer ────────────────────────────────────────────────────────
+const drawer = document.getElementById('drawer');
+const drawerOverlay = document.getElementById('drawer-overlay');
+function openDrawer()  { drawer.classList.add('open'); drawerOverlay.classList.add('open'); }
+function closeDrawer() { drawer.classList.remove('open'); drawerOverlay.classList.remove('open'); }
+document.getElementById('hamburger-btn').addEventListener('click', openDrawer);
+drawerOverlay.addEventListener('click', closeDrawer);
+
+// ── Date helpers ──────────────────────────────────────────────────
+function fmtDate(iso) {
+  if (!iso) return '未設定';
+  const d = new Date(iso + 'T00:00:00');
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+}
+function isOverdue(iso) {
+  if (!iso) return false;
+  return iso < new Date().toISOString().slice(0, 10);
+}
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+
+// ── Stars ─────────────────────────────────────────────────────────
+function starsHtml(prof, big = false) {
+  let h = '';
+  for (let i = 1; i <= 5; i++) {
+    h += big
+      ? `<span class="star-big${i <= prof ? ' on' : ''}" data-star="${i}">★</span>`
+      : `<span class="star-s${i <= prof ? ' on' : ''}">★</span>`;
+  }
+  return h;
+}
+
+// ── Category cache (kept in sync with localStorage) ───────────────
+let allCats = [];
+function refreshCats() { allCats = getData().categories; }
+
+function buildCatTree(cats) {
+  const map = {};
+  cats.forEach(c => { map[c.id] = { ...c, children: [] }; });
+  const roots = [];
+  cats.forEach(c => {
+    if (c.parent_id && map[c.parent_id]) map[c.parent_id].children.push(map[c.id]);
+    else roots.push(map[c.id]);
+  });
+  return roots;
+}
+
+function makeCrumb(item) {
+  if (!allCats.length) return '';
+  const crumbs = [];
+  let cid = item.category_id;
+  while (cid) {
+    const c = allCats.find(x => x.id === cid);
+    if (!c) break;
+    crumbs.unshift(c.name);
+    cid = c.parent_id;
+  }
+  return crumbs.join(' › ');
+}
+
+// ── Home: random cards ────────────────────────────────────────────
+function loadRandomCards() {
+  const wrap  = document.getElementById('random-cards');
+  const items = dbGetRandom();
+  wrap.innerHTML = '';
+  if (!items.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="emoji">📖</div><p>項目がありません<br>＋ボタンで追加するか<br>設定からJSONをインポートしてください</p></div>';
+    return;
+  }
+  items.forEach(item => wrap.appendChild(makeReviewCard(item)));
+}
+
+function makeReviewCard(item) {
+  const div = document.createElement('div');
+  div.className = 'review-card';
+  const od = isOverdue(item.next_review_date);
+  div.innerHTML = `
+    <div class="review-card-top">
+      <div class="review-card-name">${esc(item.name)}</div>
+      <div class="review-card-trust">${item.trust_flag}</div>
+    </div>
+    <div class="review-card-crumb">${esc(makeCrumb(item)) || '未分類'}</div>
+    <div class="review-card-bottom">
+      <div class="stars-small">${starsHtml(item.proficiency)}</div>
+      ${od
+        ? `<span class="overdue-badge">期限超過</span>`
+        : `<span class="review-date-small">次回: ${fmtDate(item.next_review_date)}</span>`}
+    </div>`;
+  div.addEventListener('click', () => openDetail(item.id));
+  return div;
+}
+
+document.getElementById('refresh-btn').addEventListener('click', loadRandomCards);
+
+// ── Home: search ──────────────────────────────────────────────────
+let searchTimer = null;
+const searchInput = document.getElementById('search-input');
+const searchClear = document.getElementById('search-clear');
+const searchSec   = document.getElementById('search-section');
+const searchRes   = document.getElementById('search-results');
+const randomSec   = document.getElementById('random-section');
+
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim();
+  searchClear.classList.toggle('hidden', !q);
+  clearTimeout(searchTimer);
+  if (!q) { searchSec.classList.add('hidden'); randomSec.classList.remove('hidden'); return; }
+  searchTimer = setTimeout(() => doSearch(q), 200);
+});
+
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  searchClear.classList.add('hidden');
+  searchSec.classList.add('hidden');
+  randomSec.classList.remove('hidden');
+});
+
+function doSearch(q) {
+  const items = dbGetItems(q, null);
+  searchSec.classList.remove('hidden');
+  randomSec.classList.add('hidden');
+  searchRes.innerHTML = '';
+  if (!items.length) {
+    searchRes.innerHTML = '<div class="empty-state"><div class="emoji">🔍</div><p>見つかりません</p></div>';
+    return;
+  }
+  items.forEach(item => searchRes.appendChild(makeItemRow(item, true)));
+}
+
+function makeItemRow(item, showCrumb = false) {
+  const div = document.createElement('div');
+  div.className = 'item-row';
+  div.innerHTML = `
+    <div class="item-row-main">
+      <div class="item-row-name">${esc(item.name)}</div>
+      ${showCrumb ? `<div class="item-row-sub">${esc(makeCrumb(item)) || '未分類'}</div>` : ''}
+    </div>
+    <div class="item-row-right">
+      <div class="stars-small">${starsHtml(item.proficiency)}</div>
+      <span class="item-trust">${item.trust_flag}</span>
+    </div>`;
+  div.addEventListener('click', () => openDetail(item.id));
+  return div;
+}
+
+// ── FAB ───────────────────────────────────────────────────────────
+document.getElementById('fab').addEventListener('click', () => openEdit(null, null));
+
+// ── Category tree screen ──────────────────────────────────────────
+document.getElementById('menu-categories').addEventListener('click', e => {
+  e.preventDefault(); closeDrawer();
+  refreshCats();
+  renderCatTree();
+  navigateTo('screen-categories');
+});
+document.getElementById('cat-back-btn').addEventListener('click', navigateBack);
+
+function renderCatTree() {
+  const body = document.getElementById('cat-tree-body');
+  const tree = buildCatTree(allCats);
+  if (!tree.length) {
+    body.innerHTML = '<div class="empty-state"><div class="emoji">📂</div><p>カテゴリがありません<br>設定からJSONをインポートしてください</p></div>';
+    return;
+  }
+  const ul = document.createElement('ul');
+  ul.className = 'cat-list';
+  tree.forEach(node => ul.appendChild(makeCatNode(node)));
+  body.innerHTML = '';
+  body.appendChild(ul);
+}
+
+function countItemsInSubtree(catId) {
+  const data  = getData();
+  const catIds = getDescendantIds(data.categories, catId);
+  return data.items.filter(i => catIds.has(i.category_id)).length;
+}
+
+function makeCatNode(node) {
+  const li  = document.createElement('li');
+  li.className = 'cat-node';
+  const row = document.createElement('div');
+  row.className = 'cat-row';
+
+  if (node.children.length) {
+    const chevron = document.createElement('button');
+    chevron.className = 'cat-chevron-btn';
+    chevron.textContent = '›';
+    chevron.addEventListener('click', e => { e.stopPropagation(); li.classList.toggle('expanded'); });
+    row.appendChild(chevron);
+  } else {
+    const sp = document.createElement('span'); sp.className = 'cat-spacer'; row.appendChild(sp);
+  }
+
+  const nameBtn = document.createElement('button');
+  nameBtn.className = 'cat-name-btn';
+  nameBtn.textContent = node.name;
+  nameBtn.addEventListener('click', () => openItemsScreen(node.id, node.name));
+  row.appendChild(nameBtn);
+
+  const cnt = document.createElement('span');
+  cnt.className = 'cat-count';
+  cnt.textContent = countItemsInSubtree(node.id) + '件';
+  row.appendChild(cnt);
+
+  li.appendChild(row);
+  if (node.children.length) {
+    const ul = document.createElement('ul');
+    ul.className = 'cat-list cat-children';
+    node.children.forEach(child => ul.appendChild(makeCatNode(child)));
+    li.appendChild(ul);
+  }
+  return li;
+}
+
+// ── Items list screen ─────────────────────────────────────────────
+let currentCategoryId = null;
+let selectedItemIds   = new Set();
+
+function openItemsScreen(catId, catName) {
+  currentCategoryId = catId;
+  selectedItemIds.clear();
+  updateItemsDeleteBar();
+  document.getElementById('items-title').textContent = catName;
+  navigateTo('screen-items');
+  refreshItemsList();
+}
+
+function refreshItemsList() {
+  if (currentCategoryId === null) return;
+  selectedItemIds.clear();
+  updateItemsDeleteBar();
+  const items = dbGetItems(null, currentCategoryId);
+  const body  = document.getElementById('items-body');
+  body.innerHTML = '';
+  if (!items.length) {
+    body.innerHTML = '<div class="empty-state"><div class="emoji">📝</div><p>まだ項目がありません<br>＋ボタンで追加してください</p></div>';
+    return;
+  }
+  const wrap = document.createElement('div');
+  wrap.style.padding = '12px 16px';
+  items.forEach(item => wrap.appendChild(makeSelectableItemRow(item)));
+  body.appendChild(wrap);
+}
+
+function makeSelectableItemRow(item) {
+  const row = document.createElement('div');
+  row.className = 'sel-item-row';
+  row.dataset.id = item.id;
+
+  const cbArea = document.createElement('div');
+  cbArea.className = 'sel-cb-area';
+  const cbIcon = document.createElement('div');
+  cbIcon.className = 'sel-cb-icon';
+  cbArea.appendChild(cbIcon);
+  cbArea.addEventListener('click', e => {
+    e.stopPropagation();
+    const checked = selectedItemIds.has(item.id);
+    if (checked) selectedItemIds.delete(item.id);
+    else         selectedItemIds.add(item.id);
+    cbIcon.classList.toggle('on', !checked);
+    row.classList.toggle('checked', !checked);
+    updateItemsDeleteBar();
+  });
+
+  const content = document.createElement('div');
+  content.className = 'sel-item-content';
+  const crumb = item.category_id !== currentCategoryId ? makeCrumb(item) : '';
+  content.innerHTML = `
+    <div class="item-row-name">${esc(item.name)}</div>
+    ${crumb ? `<div class="item-row-sub">${esc(crumb)}</div>` : ''}
+    <div class="item-row-right" style="margin-top:4px; justify-content:flex-start">
+      <div class="stars-small">${starsHtml(item.proficiency)}</div>
+      <span class="item-trust" style="font-size:14px; margin-left:6px">${item.trust_flag}</span>
+      ${isOverdue(item.next_review_date) ? '<span class="overdue-badge" style="margin-left:6px">期限超過</span>' : ''}
+    </div>`;
+  content.addEventListener('click', () => openDetail(item.id));
+
+  row.appendChild(cbArea);
+  row.appendChild(content);
+  return row;
+}
+
+function updateItemsDeleteBar() {
+  const bar = document.getElementById('items-delete-bar');
+  const btn = document.getElementById('items-delete-btn');
+  const n   = selectedItemIds.size;
+  btn.textContent = `${n}件を削除`;
+  bar.classList.toggle('visible', n > 0);
+}
+
+document.getElementById('items-delete-btn').addEventListener('click', async () => {
+  const ids = [...selectedItemIds];
+  if (!ids.length) return;
+  const ok = await showConfirm(`${ids.length}件を削除しますか？`, 'この操作は元に戻せません。選択した項目をすべて完全削除します。');
+  if (!ok) return;
+  ids.forEach(id => dbDeleteItem(id));
+  selectedItemIds.clear();
+  updateItemsDeleteBar();
+  toast(`${ids.length}件を削除しました`);
+  refreshItemsList();
+  loadRandomCards();
+});
+
+document.getElementById('items-back-btn').addEventListener('click', () => {
+  selectedItemIds.clear(); updateItemsDeleteBar(); navigateBack();
+});
+document.getElementById('add-item-btn').addEventListener('click', () => openEdit(null, currentCategoryId));
+
+// ── Detail screen ─────────────────────────────────────────────────
+let currentItemId = null;
+
+function openDetail(itemId) {
+  currentItemId = itemId;
+  navigateTo('screen-detail');
+  renderDetail(itemId);
+}
+
+function renderDetail(itemId) {
+  const item = dbGetItem(itemId);
+  const body = document.getElementById('detail-body');
+  if (!item) { body.innerHTML = '<div class="empty-state"><p>見つかりません</p></div>'; return; }
+  body.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'detail-wrap';
+
+  // Breadcrumb
+  const crumbEl = document.createElement('div');
+  crumbEl.className = 'breadcrumb';
+  const parts = [...item.breadcrumb.map(c => `<span>${esc(c.name)}</span>`), `<span style="font-weight:600;color:var(--text)">${esc(item.name)}</span>`];
+  crumbEl.innerHTML = parts.join('<span class="breadcrumb-sep"> › </span>');
+  wrap.appendChild(crumbEl);
+
+  // Name
+  const nameEl = document.createElement('div');
+  nameEl.className = 'detail-name';
+  nameEl.textContent = item.name;
+  wrap.appendChild(nameEl);
+
+  // Meta card
+  const metaCard = document.createElement('div');
+  metaCard.className = 'detail-meta-card';
+  const od = isOverdue(item.next_review_date);
+  metaCard.innerHTML = `
+    <div class="meta-row">
+      <span class="meta-label">次回復習</span>
+      <span class="review-date-val${od ? ' overdue' : ''}" id="detail-review-date">${od ? '⚡ ' : ''}${fmtDate(item.next_review_date)}</span>
+    </div>`;
+
+  const profRow = document.createElement('div');
+  profRow.className = 'meta-row';
+  profRow.innerHTML = `<span class="meta-label">習熟度</span><div class="stars-big" id="detail-stars">${starsHtml(item.proficiency, true)}</div>`;
+  metaCard.appendChild(profRow);
+
+  const trustRow = document.createElement('div');
+  trustRow.className = 'meta-row';
+  trustRow.innerHTML = `<span class="meta-label">信頼度</span><button class="trust-flag-btn" id="detail-trust">${item.trust_flag}</button>`;
+  metaCard.appendChild(trustRow);
+
+  wrap.appendChild(metaCard);
+
+  // Star tap
+  const starsEl = metaCard.querySelector('#detail-stars');
+  starsEl.addEventListener('click', e => {
+    const star = e.target.closest('[data-star]');
+    if (!star) return;
+    const newProf = parseInt(star.dataset.star);
+    starsEl.querySelectorAll('.star-big').forEach((s, i) => s.classList.toggle('on', i < newProf));
+    const nextDate = dbUpdateProficiency(itemId, newProf);
+    const rdEl = metaCard.querySelector('#detail-review-date');
+    const ndOd = isOverdue(nextDate);
+    rdEl.className = 'review-date-val' + (ndOd ? ' overdue' : '');
+    rdEl.textContent = (ndOd ? '⚡ ' : '') + fmtDate(nextDate);
+    toast('習熟度を更新しました');
+  });
+
+  // Trust tap
+  const TRUST_CYCLE = ['✅','⚠️','❓'];
+  let currentTrust = item.trust_flag;
+  const trustBtn = metaCard.querySelector('#detail-trust');
+  trustBtn.addEventListener('click', () => {
+    currentTrust = TRUST_CYCLE[(TRUST_CYCLE.indexOf(currentTrust) + 1) % TRUST_CYCLE.length];
+    trustBtn.textContent = currentTrust;
+    dbUpdateTrust(itemId, currentTrust);
+    toast('信頼度を更新しました');
+  });
+
+  // Text sections
+  [
+    { key: 'definition',            label: '定義' },
+    { key: 'normal_values',         label: '正常値' },
+    { key: 'clinical_significance', label: '臨床的意義' },
+    { key: 'related_diseases',      label: '関連疾患' },
+    { key: 'notes',                 label: '備考' },
+  ].forEach(({ key, label }) => {
+    const sec = document.createElement('div');
+    sec.className = 'detail-section';
+    sec.innerHTML = `<div class="detail-section-title">${label}</div>`;
+    const bd = document.createElement('div');
+    if (item[key] && item[key].trim()) {
+      bd.className = 'detail-section-body'; bd.textContent = item[key];
+    } else {
+      bd.className = 'detail-section-empty'; bd.textContent = '（未記入）';
+    }
+    sec.appendChild(bd);
+    wrap.appendChild(sec);
+  });
+
+  // Related tags
+  if (item.related_tags && item.related_tags.length) {
+    const relSec = document.createElement('div');
+    relSec.className = 'detail-section';
+    relSec.innerHTML = `<div class="detail-section-title">関連タグ</div>`;
+    const chips = document.createElement('div');
+    chips.className = 'related-tags-wrap';
+    item.related_tags.forEach(rt => {
+      const btn = document.createElement('button');
+      btn.className = 'related-tag-chip';
+      btn.textContent = rt.name;
+      btn.addEventListener('click', () => openDetail(rt.id));
+      chips.appendChild(btn);
+    });
+    relSec.appendChild(chips);
+    wrap.appendChild(relSec);
+  }
+
+  // Attachments (read-only)
+  if (item.attachments && item.attachments.length) {
+    const attSec = document.createElement('div');
+    attSec.className = 'detail-section';
+    attSec.innerHTML = `<div class="detail-section-title">添付資料</div>`;
+    item.attachments.forEach(a => {
+      const row = document.createElement('div');
+      row.style.cssText = 'padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.06); font-size:14px; color:var(--sub);';
+      row.innerHTML = `<span>📄</span> ${esc(a.filename || a.stored_path || '')}`;
+      attSec.appendChild(row);
+    });
+    wrap.appendChild(attSec);
+  }
+
+  // Buttons
+  const editBtn = document.createElement('button');
+  editBtn.className = 'detail-edit-btn';
+  editBtn.textContent = '編集';
+  editBtn.addEventListener('click', () => openEdit(itemId, item.category_id));
+  wrap.appendChild(editBtn);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'detail-delete-btn';
+  delBtn.textContent = 'この項目を削除';
+  delBtn.addEventListener('click', async () => {
+    const ok = await showConfirm('削除しますか？', `「${item.name}」を完全に削除します。この操作は元に戻せません。`);
+    if (!ok) return;
+    dbDeleteItem(itemId);
+    navigateBack();
+    toast('削除しました');
+    loadRandomCards();
+    if (currentCategoryId !== null) refreshItemsList();
+  });
+  wrap.appendChild(delBtn);
+
+  body.appendChild(wrap);
+}
+
+document.getElementById('detail-back-btn').addEventListener('click', navigateBack);
+
+// ── Edit screen ───────────────────────────────────────────────────
+let editState = {};
+
+function openEdit(itemId, defaultCatId) {
+  editState = { isNew: itemId === null, itemId, relatedTagIds: [] };
+  document.getElementById('edit-screen-title').textContent = itemId ? '編集' : '新規追加';
+  ['edit-name','edit-definition','edit-normal','edit-clinical','edit-diseases','edit-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('related-chips').innerHTML = '';
+  document.getElementById('related-search').value = '';
+  document.getElementById('related-dropdown').classList.remove('open');
+  document.getElementById('related-dropdown').innerHTML = '';
+  for (let l = 1; l <= 4; l++) {
+    const sel = document.getElementById(`cat-sel-${l}`);
+    sel.innerHTML = '';
+    if (l > 1) document.getElementById(`cat-lv${l}-wrap`).style.display = 'none';
+  }
+  refreshCats();
+  populateCatLevel(1, null);
+  navigateTo('screen-edit');
+
+  if (itemId) {
+    const item = dbGetItem(itemId);
+    if (item) {
+      document.getElementById('edit-name').value       = item.name || '';
+      document.getElementById('edit-definition').value = item.definition || '';
+      document.getElementById('edit-normal').value     = item.normal_values || '';
+      document.getElementById('edit-clinical').value   = item.clinical_significance || '';
+      document.getElementById('edit-diseases').value   = item.related_diseases || '';
+      document.getElementById('edit-notes').value      = item.notes || '';
+      editState.relatedTagIds = item.related_item_ids || [];
+      renderRelatedChips(item.related_tags);
+      if (item.category_id) setCatCascadeById(item.category_id);
+    }
+  } else if (defaultCatId) {
+    setCatCascadeById(defaultCatId);
+  }
+}
+
+function setCatCascadeById(catId) {
+  const path = [];
+  let cid = catId;
+  while (cid) {
+    const c = allCats.find(x => x.id === cid);
+    if (!c) break;
+    path.unshift(c); cid = c.parent_id;
+  }
+  for (let i = 0; i < path.length; i++) {
+    const level    = i + 1;
+    const parentId = i > 0 ? path[i-1].id : null;
+    populateCatLevel(level, parentId);
+    document.getElementById(`cat-sel-${level}`).value = path[i].id;
+  }
+  const nextLevel = path.length + 1;
+  if (nextLevel <= 4 && path.length) {
+    const children = allCats.filter(c => c.parent_id === path[path.length-1].id);
+    if (children.length) populateCatLevel(nextLevel, path[path.length-1].id);
+  }
+}
+
+function populateCatLevel(level, parentId) {
+  const sel  = document.getElementById(`cat-sel-${level}`);
+  const wrap = level > 1 ? document.getElementById(`cat-lv${level}-wrap`) : null;
+  const cats = level === 1
+    ? allCats.filter(c => !c.parent_id)
+    : allCats.filter(c => c.parent_id === parentId);
+
+  sel.innerHTML = '<option value="">-- 未選択 --</option>';
+  cats.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id; opt.textContent = c.name; sel.appendChild(opt);
+  });
+  const addOpt = document.createElement('option');
+  addOpt.value = '__new__'; addOpt.textContent = '＋ 新規追加'; sel.appendChild(addOpt);
+  if (wrap) wrap.style.display = 'flex';
+}
+
+for (let level = 1; level <= 4; level++) {
+  document.getElementById(`cat-sel-${level}`).addEventListener('change', function() {
+    const val = this.value;
+    for (let l = level + 1; l <= 4; l++) {
+      const s = document.getElementById(`cat-sel-${l}`);
+      s.innerHTML = '<option value="">-- 未選択 --</option>';
+      const w = document.getElementById(`cat-lv${l}-wrap`);
+      if (w) w.style.display = 'none';
+    }
+    if (val === '__new__') {
+      const name = prompt(`レベル${level}のカテゴリ名を入力してください:`);
+      if (!name || !name.trim()) { this.value = ''; return; }
+      const parentId = level > 1 ? getParentForLevel(level) : null;
+      const newCat   = dbCreateCategory(name.trim(), parentId, level);
+      refreshCats();
+      populateCatLevel(level, parentId);
+      this.value = newCat.id;
+      if (level < 4) populateCatLevel(level + 1, newCat.id);
+      return;
+    }
+    if (!val) return;
+    const catId = parseInt(val);
+    if (level < 4) {
+      const children = allCats.filter(c => c.parent_id === catId);
+      if (children.length) populateCatLevel(level + 1, catId);
+    }
+  });
+}
+
+function getParentForLevel(level) {
+  if (level <= 1) return null;
+  const sel = document.getElementById(`cat-sel-${level - 1}`);
+  const v   = sel.value;
+  return (v && v !== '__new__') ? parseInt(v) : null;
+}
+
+function getSelectedCategoryId() {
+  for (let l = 4; l >= 1; l--) {
+    const sel  = document.getElementById(`cat-sel-${l}`);
+    const wrap = l > 1 ? document.getElementById(`cat-lv${l}-wrap`) : null;
+    if ((!wrap || wrap.style.display !== 'none') && sel.value && sel.value !== '__new__') {
+      return parseInt(sel.value);
+    }
+  }
+  return null;
+}
+
+// Related tags in edit
+function renderRelatedChips(tags) {
+  const wrap = document.getElementById('related-chips');
+  wrap.innerHTML = '';
+  tags.forEach(t => {
+    const chip = document.createElement('span');
+    chip.className = 'rel-chip'; chip.dataset.id = t.id;
+    chip.innerHTML = `${esc(t.name)}<button class="rel-chip-del" data-id="${t.id}">×</button>`;
+    wrap.appendChild(chip);
+  });
+  wrap.querySelectorAll('.rel-chip-del').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.id);
+      editState.relatedTagIds = editState.relatedTagIds.filter(x => x !== id);
+      btn.closest('.rel-chip').remove();
+    });
+  });
+}
+
+let relSearchTimer = null;
+document.getElementById('related-search').addEventListener('input', function() {
+  clearTimeout(relSearchTimer);
+  const q = this.value.trim();
+  if (!q) { document.getElementById('related-dropdown').classList.remove('open'); return; }
+  relSearchTimer = setTimeout(() => {
+    const items = dbGetItems(q, null).filter(i => i.id !== editState.itemId && !editState.relatedTagIds.includes(i.id)).slice(0, 8);
+    const dd = document.getElementById('related-dropdown');
+    dd.innerHTML = '';
+    if (!items.length) { dd.classList.remove('open'); return; }
+    items.forEach(item => {
+      const opt = document.createElement('div');
+      opt.className = 'rel-option'; opt.textContent = item.name;
+      opt.addEventListener('click', () => {
+        editState.relatedTagIds.push(item.id);
+        const currentChips = [...document.getElementById('related-chips').querySelectorAll('.rel-chip')].map(c => ({
+          id: parseInt(c.dataset.id),
+          name: c.textContent.replace('×','').trim()
+        }));
+        renderRelatedChips([...currentChips, { id: item.id, name: item.name }]);
+        document.getElementById('related-search').value = '';
+        dd.classList.remove('open');
+      });
+      dd.appendChild(opt);
+    });
+    dd.classList.add('open');
+  }, 200);
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#related-search') && !e.target.closest('#related-dropdown')) {
+    document.getElementById('related-dropdown').classList.remove('open');
+  }
+});
+
+document.getElementById('edit-save-btn').addEventListener('click', saveEdit);
+document.getElementById('edit-cancel-btn').addEventListener('click', navigateBack);
+
+function saveEdit() {
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) { toast('メインタグを入力してください'); document.getElementById('edit-name').focus(); return; }
+
+  const payload = {
+    category_id:           getSelectedCategoryId(),
+    name,
+    definition:            document.getElementById('edit-definition').value.trim(),
+    normal_values:         document.getElementById('edit-normal').value.trim(),
+    clinical_significance: document.getElementById('edit-clinical').value.trim(),
+    related_diseases:      document.getElementById('edit-diseases').value.trim(),
+    notes:                 document.getElementById('edit-notes').value.trim(),
+    related_tag_ids:       editState.relatedTagIds,
+  };
+
+  let itemId = editState.itemId;
+  if (editState.isNew) {
+    itemId = dbCreateItem(payload);
+    toast('追加しました');
+  } else {
+    dbUpdateItem(itemId, payload);
+    toast('保存しました');
+  }
+
+  navigateBack();
+  openDetail(itemId);
+  loadRandomCards();
+  if (currentCategoryId !== null) refreshItemsList();
+}
+
+// ── Settings screen ───────────────────────────────────────────────
+document.getElementById('menu-settings').addEventListener('click', e => {
+  e.preventDefault(); closeDrawer();
+  refreshDataStats();
+  navigateTo('screen-settings');
+});
+document.getElementById('settings-back-btn').addEventListener('click', navigateBack);
+
+function refreshDataStats() {
+  const data = getData();
+  const today = todayStr();
+  const overdue = data.items.filter(i => (i.next_review_date || i.next_review) && (i.next_review_date || i.next_review) <= today).length;
+  document.getElementById('data-stats').innerHTML = `
+    <div class="data-stat"><span>カテゴリ</span><span class="data-stat-val">${data.categories.length}件</span></div>
+    <div class="data-stat"><span>項目</span><span class="data-stat-val">${data.items.length}件</span></div>
+    <div class="data-stat"><span>復習期限超過</span><span class="data-stat-val">${overdue}件</span></div>`;
+  updateDriveSettingsUI();
+}
+
+// Import from file
+document.getElementById('import-file-btn').addEventListener('click', () => {
+  document.getElementById('file-import-input').click();
+});
+
+document.getElementById('file-import-input').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const remote = JSON.parse(e.target.result);
+      importData(remote);
+    } catch { toast('JSONの解析に失敗しました'); }
+  };
+  reader.readAsText(file);
+  this.value = '';
+});
+
+function importData(remote) {
+  if (!remote.categories || !remote.items) { toast('不正なJSONフォーマットです'); return; }
+  const local = getData();
+  const localById = {};
+  local.items.forEach(i => { localById[i.id] = i; });
+
+  const maxCatId  = remote.categories.reduce((m, c) => Math.max(m, c.id || 0), 0);
+  const maxItemId = remote.items.reduce((m, i) => Math.max(m, i.id || 0), 0);
+
+  const merged = {
+    categories: remote.categories,
+    items: remote.items.map(ri => {
+      const li  = localById[ri.id];
+      const base = {
+        id:                    ri.id,
+        name:                  ri.title || ri.name || '',
+        category_id:           ri.category_id || null,
+        definition:            ri.definition || '',
+        normal_values:         ri.normal_values || '',
+        clinical_significance: ri.clinical_significance || '',
+        related_diseases:      ri.related_diseases || '',
+        notes:                 ri.notes || '',
+        proficiency:           ri.proficiency || 0,
+        trust_flag:            ri.trust_flag || '✅',
+        ease_factor:           ri.ease_factor || 2.5,
+        interval_days:         ri.interval_days || ri.interval || 1,
+        repetitions:           ri.repetitions || 0,
+        next_review_date:      ri.next_review_date || ri.next_review || null,
+        related_item_ids:      ri.related_item_ids || [],
+        attachments:           ri.attachments || [],
+        created_at:            ri.created_at || '',
+      };
+      if (li) {
+        // Preserve local SM-2 progress
+        return {
+          ...base,
+          proficiency:      li.proficiency || base.proficiency,
+          trust_flag:       li.trust_flag  || base.trust_flag,
+          ease_factor:      li.ease_factor || base.ease_factor,
+          interval_days:    li.interval_days || base.interval_days,
+          repetitions:      li.repetitions || base.repetitions,
+          next_review_date: li.next_review_date || base.next_review_date,
+        };
+      }
+      return base;
+    }),
+    nextId: { categories: maxCatId + 1, items: maxItemId + 1 }
+  };
+  writeLocal(merged);
+  refreshCats();
+  refreshDataStats();
+  loadRandomCards();
+  toast(`インポートしました（${merged.items.length}件）`);
+  GDriveSync.scheduleSyncToCloud();
+}
+
+// Export to JSON
+document.getElementById('export-btn').addEventListener('click', () => {
+  const data = getData();
+  const payload = {
+    categories: data.categories,
+    items: data.items.map(i => ({
+      id:                    i.id,
+      title:                 i.name || i.title || '',
+      main_tag:              '#' + (i.name || i.title || ''),
+      category_id:           i.category_id,
+      definition:            i.definition || '',
+      normal_values:         i.normal_values || '',
+      clinical_significance: i.clinical_significance || '',
+      related_diseases:      i.related_diseases || '',
+      notes:                 i.notes || '',
+      proficiency:           i.proficiency || 0,
+      trust_flag:            i.trust_flag || '✅',
+      tags:                  [],
+      attachments:           i.attachments || [],
+      next_review:           i.next_review_date || i.next_review || null,
+      ease_factor:           i.ease_factor || 2.5,
+      interval:              i.interval_days || i.interval || 1,
+      repetitions:           i.repetitions || 0,
+      related_item_ids:      i.related_item_ids || [],
+      created_at:            i.created_at || '',
+    }))
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'vetlearn_data.json'; a.click();
+  URL.revokeObjectURL(url);
+  toast('JSONをダウンロードしました');
+});
+
+// Reset
+document.getElementById('reset-btn').addEventListener('click', async () => {
+  const ok = await showConfirm('すべて削除しますか？', 'ローカルに保存されたすべてのデータを削除します。この操作は元に戻せません。', '削除する');
+  if (!ok) return;
+  localStorage.removeItem(STORAGE_KEY);
+  refreshCats();
+  refreshDataStats();
+  loadRandomCards();
+  toast('データを削除しました');
+});
+
+// ── Escape helper ─────────────────────────────────────────────────
+function esc(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Drive UI helpers ──────────────────────────────────────────────
+function showSyncIndicator(on) {
+  document.getElementById('sync-indicator').classList.toggle('active', on);
+}
+function showDriveSyncStatus(status) {
+  const el = document.getElementById('drive-sync-status');
+  if (!el) return;
+  const msg = { ok: '✓ 同期完了', error: '⚠ 同期エラー（次回再試行）', offline: '📶 オフライン中' };
+  el.textContent = msg[status] || '';
+}
+function updateDriveSettingsUI() {
+  const s      = getVetSettings();
+  const toggle = document.getElementById('setting-drive-toggle');
+  const subrow = document.getElementById('setting-drive-subrow');
+  if (!toggle || !subrow) return;
+  toggle.checked = s.driveEnabled;
+  subrow.style.display = s.driveEnabled ? 'block' : 'none';
+  if (!s.driveEnabled) return;
+  const authed = GDriveSync.isAuthed();
+  document.getElementById('drive-signin-area').style.display  = authed ? 'none'  : 'block';
+  document.getElementById('drive-account-area').style.display = authed ? 'block' : 'none';
+  if (authed) document.getElementById('drive-account-status').textContent = '✓ Googleアカウント接続中';
+}
+
+// ── applyCloudData: Driveから取得したデータを適用（sync不発火） ────
+function applyCloudData(remote) {
+  if (!remote || !remote.categories || !remote.items) return;
+  const local = getData();
+  const localById = {};
+  local.items.forEach(i => { localById[i.id] = i; });
+  const maxCatId  = remote.categories.reduce((m, c) => Math.max(m, c.id || 0), 0);
+  const maxItemId = remote.items.reduce((m, i) => Math.max(m, i.id || 0), 0);
+  const merged = {
+    categories: remote.categories,
+    items: remote.items.map(ri => {
+      const li  = localById[ri.id];
+      const base = {
+        id:                    ri.id,
+        name:                  ri.title || ri.name || '',
+        category_id:           ri.category_id || null,
+        definition:            ri.definition || '',
+        normal_values:         ri.normal_values || '',
+        clinical_significance: ri.clinical_significance || '',
+        related_diseases:      ri.related_diseases || '',
+        notes:                 ri.notes || '',
+        proficiency:           ri.proficiency || 0,
+        trust_flag:            ri.trust_flag || '✅',
+        ease_factor:           ri.ease_factor || 2.5,
+        interval_days:         ri.interval_days || ri.interval || 1,
+        repetitions:           ri.repetitions || 0,
+        next_review_date:      ri.next_review_date || ri.next_review || null,
+        related_item_ids:      ri.related_item_ids || [],
+        attachments:           ri.attachments || [],
+        created_at:            ri.created_at || '',
+      };
+      if (li) {
+        return {
+          ...base,
+          proficiency:      li.proficiency || base.proficiency,
+          trust_flag:       li.trust_flag  || base.trust_flag,
+          ease_factor:      li.ease_factor || base.ease_factor,
+          interval_days:    li.interval_days || base.interval_days,
+          repetitions:      li.repetitions || base.repetitions,
+          next_review_date: li.next_review_date || base.next_review_date,
+        };
+      }
+      return base;
+    }),
+    nextId: { categories: maxCatId + 1, items: maxItemId + 1 }
+  };
+  writeLocal(merged);
+  refreshCats();
+  loadRandomCards();
+}
+
+// ── Google Drive Sync ─────────────────────────────────────────────
+const GDriveSync = (() => {
+  let tokenClient = null;
+  let accessToken = null;
+  let tokenExpiry = 0;
+  let cachedFileId = null;
+  let syncing = false;
+  let pendingUpload = false;
+  let hadAuth = false;
+  let silentRenewalPending = false;
+
+  function loadStored() {
+    try {
+      const d = JSON.parse(localStorage.getItem(GDRIVE_TOKEN_KEY) || 'null');
+      if (d && d.t && d.e > Date.now()) { accessToken = d.t; tokenExpiry = d.e; }
+    } catch {}
+    cachedFileId = localStorage.getItem(GDRIVE_FILEID_KEY) || null;
+    hadAuth      = !!localStorage.getItem(GDRIVE_AUTHED_KEY);
+  }
+
+  function storeToken(tok, expiresIn) {
+    accessToken = tok;
+    tokenExpiry = Date.now() + (expiresIn - 60) * 1000;
+    hadAuth = true;
+    localStorage.setItem(GDRIVE_TOKEN_KEY, JSON.stringify({ t: accessToken, e: tokenExpiry }));
+    localStorage.setItem(GDRIVE_AUTHED_KEY, '1');
+  }
+
+  function clearAuth() {
+    accessToken = null; tokenExpiry = 0; cachedFileId = null; hadAuth = false;
+    localStorage.removeItem(GDRIVE_TOKEN_KEY);
+    localStorage.removeItem(GDRIVE_FILEID_KEY);
+    localStorage.removeItem(GDRIVE_AUTHED_KEY);
+  }
+
+  function isAuthed() { return !!accessToken && Date.now() < tokenExpiry; }
+
+  function initGIS() {
+    if (!GDRIVE_CLIENT_ID) return;
+    if (typeof google === 'undefined') return;
+    if (tokenClient) return;
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GDRIVE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: () => {},
+    });
+  }
+
+  function requestToken(prompt) {
+    return new Promise((resolve, reject) => {
+      initGIS();
+      if (!tokenClient) { reject(new Error('GIS tokenClient 未初期化')); return; }
+      const timer = prompt === ''
+        ? setTimeout(() => reject(new Error('timeout')), 15000)
+        : null;
+      tokenClient.callback = r => {
+        if (timer) clearTimeout(timer);
+        if (r.error) { reject(new Error(r.error)); return; }
+        storeToken(r.access_token, r.expires_in);
+        resolve(r.access_token);
+      };
+      tokenClient.requestAccessToken({ prompt: prompt || '' });
+    });
+  }
+
+  async function getToken() {
+    if (isAuthed()) return accessToken;
+    return requestToken('');
+  }
+
+  async function tryAutoLogin() {
+    if (!hadAuth) return false;
+    if (isAuthed()) return true;
+    if (!navigator.onLine) return false;
+    try { await requestToken(''); return true; }
+    catch (e) { if (e.message === 'access_denied') clearAuth(); return false; }
+  }
+
+  async function findFileId(token) {
+    if (cachedFileId) return cachedFileId;
+    const q = encodeURIComponent(`name='${GDRIVE_FILE_NAME}' and trashed=false`);
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&spaces=drive`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!r.ok) throw new Error('search_failed');
+    const { files } = await r.json();
+    if (files && files.length > 0) {
+      cachedFileId = files[0].id; localStorage.setItem(GDRIVE_FILEID_KEY, cachedFileId);
+    }
+    return cachedFileId;
+  }
+
+  async function upload(data) {
+    const token = await getToken();
+    const id    = await findFileId(token);
+    const body  = JSON.stringify(data, null, 2);
+    if (id) {
+      const r = await fetch(
+        `https://www.googleapis.com/upload/drive/v3/files/${id}?uploadType=media`,
+        { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body }
+      );
+      if (!r.ok) {
+        cachedFileId = null; localStorage.removeItem(GDRIVE_FILEID_KEY);
+        throw new Error('upload_failed');
+      }
+    } else {
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify({ name: GDRIVE_FILE_NAME, mimeType: 'application/json' })], { type: 'application/json' }));
+      form.append('media',    new Blob([body], { type: 'application/json' }));
+      const r = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id',
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form }
+      );
+      if (!r.ok) throw new Error('create_failed');
+      const { id: newId } = await r.json();
+      cachedFileId = newId; localStorage.setItem(GDRIVE_FILEID_KEY, newId);
+    }
+  }
+
+  async function download() {
+    const token = await getToken();
+    const id    = await findFileId(token);
+    if (!id) return null;
+    const r = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!r.ok) throw new Error('download_failed');
+    return await r.json();
+  }
+
+  async function scheduleSyncToCloud() {
+    const s = getVetSettings();
+    if (!s.driveEnabled) return;
+    if (!isAuthed()) {
+      pendingUpload = true;
+      if (hadAuth && !silentRenewalPending) {
+        silentRenewalPending = true;
+        tryAutoLogin().then(ok => {
+          silentRenewalPending = false;
+          updateDriveSettingsUI();
+          if (ok && pendingUpload) scheduleSyncToCloud();
+        });
+      }
+      return;
+    }
+    if (!navigator.onLine) { pendingUpload = true; showDriveSyncStatus('offline'); return; }
+    if (syncing) { pendingUpload = true; return; }
+
+    syncing = true; showSyncIndicator(true);
+    let succeeded = false;
+    try {
+      await upload(getData());
+      pendingUpload = false; showDriveSyncStatus('ok');
+      succeeded = true;
+    } catch (e) {
+      pendingUpload = true; showDriveSyncStatus('error');
+    } finally {
+      syncing = false; showSyncIndicator(false);
+      if (succeeded && pendingUpload) scheduleSyncToCloud();
+    }
+  }
+
+  async function syncFromCloud() {
+    const s = getVetSettings();
+    if (!s.driveEnabled || !isAuthed() || !navigator.onLine) return;
+    showSyncIndicator(true);
+    try {
+      const data = await download();
+      if (data && data.categories && data.items) {
+        applyCloudData(data); showDriveSyncStatus('ok');
+      } else {
+        await upload(getData()); showDriveSyncStatus('ok');
+      }
+    } catch (e) {
+      showDriveSyncStatus('error');
+    } finally {
+      showSyncIndicator(false);
+    }
+  }
+
+  async function signIn() {
+    try {
+      await requestToken('select_account');
+      updateDriveSettingsUI();
+      await syncFromCloud();
+      if (pendingUpload) await scheduleSyncToCloud();
+    } catch (e) {
+      updateDriveSettingsUI();
+    }
+  }
+
+  function signOut() {
+    if (accessToken && typeof google !== 'undefined') {
+      try { google.accounts.oauth2.revoke(accessToken, () => {}); } catch {}
+    }
+    clearAuth(); updateDriveSettingsUI(); showDriveSyncStatus('');
+  }
+
+  async function onGISLoad() {
+    initGIS();
+    const s = getVetSettings();
+    if (!s.driveEnabled) return;
+    if (!isAuthed()) {
+      const ok = await tryAutoLogin();
+      updateDriveSettingsUI();
+      if (ok && navigator.onLine) {
+        await syncFromCloud();
+        if (pendingUpload) await scheduleSyncToCloud();
+      }
+    }
+  }
+
+  function init() { loadStored(); initGIS(); }
+
+  return { init, signIn, signOut, isAuthed, onGISLoad, scheduleSyncToCloud, syncFromCloud,
+           flushPending: scheduleSyncToCloud };
+})();
+
+window.onGoogleLibraryLoad = () => GDriveSync.onGISLoad();
+
+// ── Drive settings handlers ───────────────────────────────────────
+document.getElementById('setting-drive-toggle').addEventListener('change', async e => {
+  const s = getVetSettings(); s.driveEnabled = e.target.checked; saveVetSettings(s);
+  updateDriveSettingsUI();
+  if (s.driveEnabled) {
+    if (!GDriveSync.isAuthed()) await GDriveSync.signIn();
+    else await GDriveSync.syncFromCloud();
+  }
+});
+document.getElementById('drive-sign-in-btn').addEventListener('click',  () => GDriveSync.signIn());
+document.getElementById('drive-sign-out-btn').addEventListener('click', () => GDriveSync.signOut());
+window.addEventListener('online', () => GDriveSync.flushPending());
+
+// ── Init ──────────────────────────────────────────────────────────
+(function init() {
+  GDriveSync.init();
+  refreshCats();
+  loadRandomCards();
+  if (getVetSettings().driveEnabled && GDriveSync.isAuthed() && navigator.onLine) {
+    GDriveSync.syncFromCloud();
+  }
+})();
+</script>
+</body>
+</html>
