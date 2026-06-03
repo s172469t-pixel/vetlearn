@@ -632,10 +632,9 @@
       <div class="form-group">
         <label class="form-label">画像添付</label>
         <div class="attach-list" id="attach-preview-list"></div>
-        <label class="attach-add-label">
-          📷 画像を追加
-          <input type="file" id="attach-input" accept="image/*" multiple style="display:none">
-        </label>
+        <button type="button" class="attach-add-label" id="attach-add-btn">📷 画像を追加</button>
+        <input type="file" id="attach-input" accept="image/*" multiple
+               style="position:absolute;opacity:0;width:0;height:0;pointer-events:none">
       </div>
       <div class="form-group">
         <label class="form-label">関連タグ</label>
@@ -1481,6 +1480,10 @@ function renderAttachList() {
     wrap.appendChild(thumbWrap);
   });
 }
+
+document.getElementById('attach-add-btn').addEventListener('click', () => {
+  document.getElementById('attach-input').click();
+});
 
 document.getElementById('attach-input').addEventListener('change', function() {
   const files = [...this.files];
