@@ -514,6 +514,37 @@
     .data-stat:last-child { border-bottom: none; }
     .data-stat-val { font-weight: 600; color: var(--accent); }
     #file-import-input { display: none; }
+    /* Drive login popup */
+    #drive-login-popup-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 900;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.2s; padding-inline: 32px;
+    }
+    #drive-login-popup-overlay.open { opacity: 1; pointer-events: auto; }
+    #drive-login-popup {
+      background: var(--card); border-radius: 20px; width: 100%; max-width: 320px;
+      padding: 28px 20px; text-align: center;
+      transform: scale(0.92); transition: transform 0.2s;
+    }
+    #drive-login-popup-overlay.open #drive-login-popup { transform: scale(1); }
+    .dlp-icon { font-size: 44px; margin-bottom: 16px; }
+    #drive-login-popup h3 {
+      font-size: 16px; font-weight: 600; margin-bottom: 24px; line-height: 1.5; color: var(--text);
+    }
+    #dlp-login-btn {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      background: var(--accent); color: white; font-size: 16px; font-weight: 600;
+      cursor: pointer; font-family: inherit; margin-bottom: 10px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #dlp-login-btn:active { opacity: 0.85; }
+    #dlp-skip-btn {
+      width: 100%; padding: 14px; border: none; border-radius: 12px;
+      background: none; color: var(--sub); font-size: 15px;
+      cursor: pointer; font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #dlp-skip-btn:active { background: var(--bg); }
   </style>
 </head>
 <body>
@@ -737,6 +768,15 @@
     <img id="img-popup-img" alt="">
   </div>
 </div>
+<div id="drive-login-popup-overlay">
+  <div id="drive-login-popup">
+    <div class="dlp-icon">☁️</div>
+    <h3>Googleドライブと連携するとデータが同期されます</h3>
+    <button id="dlp-login-btn">ログインして連携する</button>
+    <button id="dlp-skip-btn">今はしない</button>
+  </div>
+</div>
+
 <div id="confirm-overlay">
   <div id="confirm-box">
     <div class="confirm-body">
@@ -2341,8 +2381,9 @@ const GDriveSync = (() => {
           if (pendingUpload) await scheduleSyncToCloud();
         }
       } else {
-        // サイレントログイン失敗 → ログインボタンを表示
+        // サイレントログイン失敗 → ポップアップを表示
         updateDriveSettingsUI();
+        showDriveLoginPopup();
       }
     } else {
       // トークン有効 → そのまま同期
@@ -2361,6 +2402,24 @@ const GDriveSync = (() => {
 })();
 
 window.onGoogleLibraryLoad = () => GDriveSync.onGISLoad();
+
+// ── Drive login popup ─────────────────────────────────────────────
+function showDriveLoginPopup() {
+  document.getElementById('drive-login-popup-overlay').classList.add('open');
+}
+function hideDriveLoginPopup() {
+  document.getElementById('drive-login-popup-overlay').classList.remove('open');
+}
+document.getElementById('dlp-login-btn').addEventListener('click', async () => {
+  hideDriveLoginPopup();
+  const s = getVetSettings();
+  s.driveEnabled = true;
+  saveVetSettings(s);
+  await GDriveSync.signIn();
+});
+document.getElementById('dlp-skip-btn').addEventListener('click', () => {
+  hideDriveLoginPopup();
+});
 
 // ── Drive settings handlers ───────────────────────────────────────
 document.getElementById('setting-drive-toggle').addEventListener('change', async e => {
