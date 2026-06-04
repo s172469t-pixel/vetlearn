@@ -1870,57 +1870,72 @@ document.getElementById('file-import-input').addEventListener('change', function
 
 function importData(remote) {
   if (!remote.categories || !remote.items) { toast('不正なJSONフォーマットです'); return; }
-  const local = getData();
-  const localById = {};
-  local.items.forEach(i => { localById[i.id] = i; });
+  const data = getData();
+  if (!data.nextId) data.nextId = { categories: 1, items: 1 };
 
-  const maxCatId  = remote.categories.reduce((m, c) => Math.max(m, c.id || 0), 0);
-  const maxItemId = remote.items.reduce((m, i) => Math.max(m, i.id || 0), 0);
+  // --- Categories: match by name, add new only ---
+  const existingCatNames = new Set(data.categories.map(c => c.name));
+  const catIdMap = {};
+  data.categories.forEach(c => {
+    // pre-populate map for existing cats (remote id unknown here; filled below)
+  });
 
-  const merged = {
-    categories: remote.categories,
-    items: remote.items.map(ri => {
-      const li  = localById[ri.id];
-      const base = {
-        id:                    ri.id,
-        name:                  ri.title || ri.name || '',
-        category_id:           ri.category_id || null,
+  remote.categories.forEach(rc => {
+    if (existingCatNames.has(rc.name)) {
+      const local = data.categories.find(c => c.name === rc.name);
+      if (local) catIdMap[rc.id] = local.id;
+    } else {
+      const newId = data.nextId.categories++;
+      const mappedParent = rc.parent_id != null ? (catIdMap[rc.parent_id] ?? null) : null;
+      data.categories.push({ id: newId, name: rc.name, parent_id: mappedParent, level: rc.level || 1 });
+      catIdMap[rc.id] = newId;
+      existingCatNames.add(rc.name);
+    }
+  });
+
+  // --- Items: match by main_tag / name, add new only ---
+  const existingItemNames = new Set(data.items.map(i => (i.name || i.title || '').trim()));
+  const today = new Date().toISOString().slice(0, 10);
+  let added = 0, skipped = 0;
+
+  remote.items.forEach(ri => {
+    const rawName = (ri.main_tag || '').replace(/^#/, '').trim() || (ri.title || ri.name || '').trim();
+    if (!rawName) return;
+
+    if (existingItemNames.has(rawName)) {
+      skipped++;
+    } else {
+      const newId = data.nextId.items++;
+      const catId = ri.category_id != null ? (catIdMap[ri.category_id] ?? null) : null;
+      data.items.push({
+        id:                    newId,
+        name:                  rawName,
+        category_id:           catId,
         definition:            ri.definition || '',
         normal_values:         ri.normal_values || '',
         clinical_significance: ri.clinical_significance || '',
         related_diseases:      ri.related_diseases || '',
         notes:                 ri.notes || '',
-        proficiency:           ri.proficiency || 0,
-        trust_flag:            ri.trust_flag || '✅',
-        ease_factor:           ri.ease_factor || 2.5,
-        interval_days:         ri.interval_days || ri.interval || 1,
-        repetitions:           ri.repetitions || 0,
-        next_review_date:      ri.next_review_date || ri.next_review || null,
-        related_item_ids:      ri.related_item_ids || [],
+        proficiency:           0,
+        trust_flag:            '✅',
+        ease_factor:           2.5,
+        interval_days:         1,
+        repetitions:           0,
+        next_review_date:      today,
+        related_item_ids:      [],
         attachments:           ri.attachments || [],
-        created_at:            ri.created_at || '',
-      };
-      if (li) {
-        // Preserve local SM-2 progress
-        return {
-          ...base,
-          proficiency:      li.proficiency || base.proficiency,
-          trust_flag:       li.trust_flag  || base.trust_flag,
-          ease_factor:      li.ease_factor || base.ease_factor,
-          interval_days:    li.interval_days || base.interval_days,
-          repetitions:      li.repetitions || base.repetitions,
-          next_review_date: li.next_review_date || base.next_review_date,
-        };
-      }
-      return base;
-    }),
-    nextId: { categories: maxCatId + 1, items: maxItemId + 1 }
-  };
-  writeLocal(merged);
+        created_at:            ri.created_at || today,
+      });
+      existingItemNames.add(rawName);
+      added++;
+    }
+  });
+
+  writeLocal(data);
   refreshCats();
   refreshDataStats();
   loadRandomCards();
-  toast(`インポートしました（${merged.items.length}件）`);
+  toast(`${added}件追加、${skipped}件スキップ`);
   GDriveSync.scheduleSyncToCloud();
 }
 
